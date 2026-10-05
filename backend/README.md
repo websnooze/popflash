@@ -1,6 +1,6 @@
-# PopFlash Backend
+# Fragstack Backend
 
-CS2 matchmaking backend (PopFlash-style) built with **Bun**, **Hono**, **Drizzle**, and the **DatHost CS2 Match API**.
+CS2 matchmaking backend built with **Bun**, **Hono**, **Drizzle**, and the **DatHost CS2 Match API**.
 
 ## Stack
 

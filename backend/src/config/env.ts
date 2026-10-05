@@ -1,7 +1,9 @@
-import { z } from 'zod'
+import { z } from "zod";
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: z
+    .enum(["development", "production", "test"])
+    .default("development"),
   PORT: z.coerce.number().int().positive().default(5004),
   POSTGRES_URL: z.string().min(1),
   SESSION_SECRET: z.string().min(32),
@@ -12,22 +14,22 @@ const envSchema = z.object({
   DATHOST_PASSWORD: z.string().min(1),
   DATHOST_TEMPLATE_SERVER_ID: z.string().min(1),
   DATHOST_WEBHOOK_SECRET: z.string().min(16),
-  COOKIE_NAME: z.string().default('popflash_session'),
-})
+  COOKIE_NAME: z.string().default("fragstack_session"),
+});
 
-export type Env = z.infer<typeof envSchema>
+export type Env = z.infer<typeof envSchema>;
 
 function loadEnv(): Env {
-  const parsed = envSchema.safeParse(Bun.env)
+  const parsed = envSchema.safeParse(Bun.env);
 
   if (!parsed.success) {
     const details = parsed.error.issues
-      .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
-      .join('\n')
-    throw new Error(`Invalid environment variables:\n${details}`)
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join("\n");
+    throw new Error(`Invalid environment variables:\n${details}`);
   }
 
-  return parsed.data
+  return parsed.data;
 }
 
-export const env = loadEnv()
+export const env = loadEnv();

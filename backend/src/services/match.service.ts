@@ -165,7 +165,7 @@ export class MatchService {
       dathostServerId = server.id
 
       await dathostClient.updateServer(server.id, {
-        name: `popflash-${matchId.slice(0, 8)}`,
+        name: `fragstack-${matchId.slice(0, 8)}`,
         location,
         'cs2_settings.slots': String(lobby.teamSize * 2 + Math.max(1, lobbyView.spectatorCount)),
         'cs2_settings.rcon': rcon,
@@ -347,6 +347,7 @@ export class MatchService {
 
     if (eventName === 'server_ready_for_players' && connect) {
       wsHub.emitMatchConnect(match.lobbyId, match.id, connect)
+      await this.loadFragstackConfig(match.id, match.dathostServerId)
     }
 
     if (eventName === 'match_ended' || eventName === 'gotv_stopped' || eventName === 'match_canceled') {
@@ -471,6 +472,29 @@ export class MatchService {
       await dathostClient.deleteServer(match.dathostServerId)
     } catch {
       // Best-effort — autostop remains as safety net
+    }
+  }
+
+  /**
+   * After DatHost reports the server is ready, load Fragstack match config into Fragstack via console.
+   * Uses DatHost console API (not in-game RCON password).
+   */
+  private async loadFragstackConfig(matchId: string, dathostServerId: string | null): Promise<void> {
+    if (!dathostServerId) return
+
+    const base = env.PUBLIC_URL.replace(/\/$/, '')
+    const url = `${base}/matches/${matchId}/fragstack.json`
+    // Fragstack: fragstack_loadmatch_url "<url>" "<header_key>" "<header_value>"
+    const line = `fragstack_loadmatch_url "${url}" "Authorization" "${env.DATHOST_WEBHOOK_SECRET}"`
+
+    try {
+      await dathostClient.sendConsole(dathostServerId, line)
+    } catch (error) {
+      console.error('[Fragstack] loadmatch_url failed', {
+        matchId,
+        dathostServerId,
+        error: error instanceof Error ? error.message : error,
+      })
     }
   }
 

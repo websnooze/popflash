@@ -86,6 +86,13 @@ export class DathostClient {
     })
   }
 
+  /** Send a console / RCON-equivalent line via DatHost (no in-game RCON password needed). */
+  async sendConsole(serverId: string, line: string): Promise<void> {
+    const form = new FormData()
+    form.set('line', line)
+    await this.request<void>('POST', `/game-servers/${serverId}/console`, form)
+  }
+
   private async request<T>(
     method: string,
     path: string,
