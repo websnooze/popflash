@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { lobbyApi } from "@/lib/client";
 import { ApiError } from "@/lib/api";
 import type { Lobby } from "@/lib/types";
+import { Logo } from "@/components/ui/Logo";
 
 export function HomePage() {
   const navigate = useNavigate();
@@ -37,7 +38,9 @@ export function HomePage() {
       void navigate({ to: "/lobby/$code", params: { code: lobby.code } });
     },
     onError: (err) => {
-      setError(err instanceof ApiError ? err.message : "Could not create lobby");
+      setError(
+        err instanceof ApiError ? err.message : "Could not create lobby",
+      );
     },
   });
 
@@ -70,13 +73,18 @@ export function HomePage() {
           <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-pf-muted">
             CS2 pickup matches
           </p>
-          <h1 className="font-display max-w-4xl text-6xl font-bold leading-[0.92] tracking-tight text-pf-ink sm:text-7xl md:text-8xl">
-            POP
-            <span className="mx-1 inline-block bg-pf-accent px-2 text-pf-accent-ink">FLASH</span>
-          </h1>
+          <div className="flex items-center gap-2">
+            <Logo size={80} className="text-pf-default" />
+            <h1 className="font-display max-w-4xl text-6xl font-bold leading-[0.92] tracking-tight text-pf-ink sm:text-7xl md:text-8xl">
+              FRAG
+              <span className="mx-1 inline-block bg-pf-accent px-2 text-pf-accent-ink">
+                STACK
+              </span>
+            </h1>
+          </div>
           <p className="mt-6 max-w-xl text-lg text-pf-muted sm:text-xl">
-            Create a lobby, lock teams, run a captain map veto, and drop into a live DatHost CS2
-            server.
+            Create a lobby, lock teams, run a captain map veto, and drop into a
+            live DatHost CS2 server.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center gap-3">
@@ -112,21 +120,29 @@ export function HomePage() {
 
       <section className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
         <div className="rounded-3xl border border-pf-line bg-white/85 p-6 shadow-sm">
-          <h2 className="font-display text-2xl font-bold">Join with invite code</h2>
-          <p className="mt-1 text-sm text-pf-muted">Paste a lobby code shared by your friends.</p>
+          <h2 className="font-display text-2xl font-bold">
+            Join with invite code
+          </h2>
+          <p className="mt-1 text-sm text-pf-muted">
+            Paste a lobby code shared by your friends.
+          </p>
 
           <form
             className="mt-5 flex flex-col gap-3 sm:flex-row"
             onSubmit={(event) => {
               event.preventDefault();
-              requireAuth(() => joinMutation.mutate(joinCode.trim().toUpperCase()));
+              requireAuth(() =>
+                joinMutation.mutate(joinCode.trim().toUpperCase()),
+              );
             }}
           >
             <TextField className="flex-1" fullWidth>
               <Label>Lobby code</Label>
               <Input
                 value={joinCode}
-                onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+                onChange={(event) =>
+                  setJoinCode(event.target.value.toUpperCase())
+                }
                 placeholder="ABC123"
                 maxLength={8}
               />
@@ -147,7 +163,9 @@ export function HomePage() {
 
         <div className="rounded-3xl border border-pf-line bg-white/85 p-6 shadow-sm">
           <h2 className="font-display text-2xl font-bold">Open lobbies</h2>
-          <p className="mt-1 text-sm text-pf-muted">Public rooms waiting for players.</p>
+          <p className="mt-1 text-sm text-pf-muted">
+            Public rooms waiting for players.
+          </p>
 
           <div className="mt-5 space-y-2">
             {lobbiesQuery.isLoading ? (
@@ -158,12 +176,17 @@ export function HomePage() {
                   key={lobby.id}
                   lobby={lobby}
                   onOpen={() =>
-                    void navigate({ to: "/lobby/$code", params: { code: lobby.code } })
+                    void navigate({
+                      to: "/lobby/$code",
+                      params: { code: lobby.code },
+                    })
                   }
                 />
               ))
             ) : (
-              <p className="text-sm text-pf-muted">No public lobbies yet. Create the first one.</p>
+              <p className="text-sm text-pf-muted">
+                No public lobbies yet. Create the first one.
+              </p>
             )}
           </div>
         </div>
@@ -182,7 +205,8 @@ function LobbyRow({ lobby, onOpen }: { lobby: Lobby; onOpen: () => void }) {
       <div>
         <p className="font-semibold text-pf-ink">#{lobby.code}</p>
         <p className="text-xs text-pf-muted">
-          {lobby.playerCount}/{lobby.maxPlayers} · {lobby.location} · {lobby.status}
+          {lobby.playerCount}/{lobby.maxPlayers} · {lobby.location} ·{" "}
+          {lobby.status}
         </p>
       </div>
       <span className="text-sm font-medium text-pf-ink">Open</span>
