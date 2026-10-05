@@ -1,13 +1,13 @@
 using Newtonsoft.Json.Linq;
 
-namespace MatchZy.Tests;
+namespace Fragstack.Tests;
 
 public class TranslationTests
 {
     private static string LangDirectory()
     {
         string? dir = AppContext.BaseDirectory;
-        while (dir != null && !File.Exists(Path.Combine(dir, "MatchZy.csproj"))) dir = Path.GetDirectoryName(dir);
+        while (dir != null && !File.Exists(Path.Combine(dir, "Fragstack.csproj"))) dir = Path.GetDirectoryName(dir);
         Assert.NotNull(dir);
         return Path.Combine(dir!, "lang");
     }

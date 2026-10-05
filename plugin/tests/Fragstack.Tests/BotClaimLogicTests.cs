@@ -1,7 +1,7 @@
-using MatchZy;
-using static MatchZy.BotClaimLogic;
+using Fragstack;
+using static Fragstack.BotClaimLogic;
 
-namespace MatchZy.Tests;
+namespace Fragstack.Tests;
 
 public class BotClaimLogicTests
 {

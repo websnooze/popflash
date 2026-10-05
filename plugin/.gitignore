@@ -1,6 +1,6 @@
 obj/*
 bin/*
 /.vs
-MatchZy.sln
+Fragstack.sln
 tests/**/bin/
 tests/**/obj/

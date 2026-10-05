@@ -2,7 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 
-namespace MatchZy;
+namespace Fragstack;
 
 public static class PlayerTeleport
 {

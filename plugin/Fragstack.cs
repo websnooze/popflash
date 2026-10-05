@@ -10,21 +10,21 @@ using CounterStrikeSharp.API.Core.Attributes;
 using CounterStrikeSharp.API.Modules.Events;
 
 
-namespace MatchZy
+namespace Fragstack
 {
     [MinimumApiVersion(227)]
-    public partial class MatchZy : BasePlugin
+    public partial class Fragstack : BasePlugin
     {
 
-        public override string ModuleName => "MatchZy";
+        public override string ModuleName => "Fragstack";
 
         public override string ModuleVersion => "0.9.1";
 
-        public override string ModuleAuthor => "WD- (https://github.com/shobhit-pathak/)";
+        public override string ModuleAuthor => "Fragstack";
 
-        public override string ModuleDescription => "A plugin for running and managing CS2 practice/pugs/scrims/matches!";
+        public override string ModuleDescription => "Fragstack CS2 match plugin — practice, pugs, scrims and competitive matches.";
 
-        public string chatPrefix = $"[{ChatColors.Green}MatchZy{ChatColors.Default}]";
+        public string chatPrefix = $"[{ChatColors.Green}Fragstack{ChatColors.Default}]";
         public string adminChatPrefix = $"[{ChatColors.Red}ADMIN{ChatColors.Default}]";
 
         // Plugin start phase data
@@ -69,7 +69,7 @@ namespace MatchZy
         public CounterStrikeSharp.API.Modules.Timers.Timer? pausedStateTimer = null;
 
         // Each message is kept in chat display for ~13 seconds, hence setting default chat timer to 13 seconds.
-        // Configurable using matchzy_chat_messages_timer_delay <seconds>
+        // Configurable using fragstack_chat_messages_timer_delay <seconds>
         public int chatTimerDelay = 13;
 
         // Game Config
@@ -119,7 +119,7 @@ namespace MatchZy
         {
             try
             {
-                string informational = typeof(MatchZy).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? ModuleVersion;
+                string informational = typeof(Fragstack).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? ModuleVersion;
                 string commit = informational.Contains('+') ? informational[(informational.IndexOf('+') + 1)..] : "unknown";
                 if (commit.Length > 7) commit = commit[..7];
                 return $"[build {commit}, CounterStrikeSharp API {Api.GetVersion()}, {RuntimeInformation.OSDescription}]";
@@ -140,12 +140,12 @@ namespace MatchZy
             AddTimer(1.0f, CheckReadyTime, TimerFlags.REPEAT);
 
             // This sets default config ConVars
-            Server.ExecuteCommand("execifexists MatchZy/config.cfg");
+            Server.ExecuteCommand("execifexists Fragstack/config.cfg");
 
-            teamSides[matchzyTeam1] = "CT";
-            teamSides[matchzyTeam2] = "TERRORIST";
-            reverseTeamSides["CT"] = matchzyTeam1;
-            reverseTeamSides["TERRORIST"] = matchzyTeam2;
+            teamSides[fragstackTeam1] = "CT";
+            teamSides[fragstackTeam2] = "TERRORIST";
+            reverseTeamSides["CT"] = fragstackTeam1;
+            reverseTeamSides["TERRORIST"] = fragstackTeam2;
 
             if (!hotReload) {
                 AutoStart();
@@ -273,7 +273,7 @@ namespace MatchZy
                 CCSPlayerController? player = @event.Userid;
                 if (!IsPlayerValid(player)) return HookResult.Continue;
 
-                if (matchzyTeam1.coach.Contains(player!) || matchzyTeam2.coach.Contains(player!)) {
+                if (fragstackTeam1.coach.Contains(player!) || fragstackTeam2.coach.Contains(player!)) {
                     @event.Silent = true;
                     return HookResult.Changed;
                 }
@@ -409,7 +409,7 @@ namespace MatchZy
                 {
                     int damage = @event.DmgHealth;
                     int postDamageHealth = @event.Health;
-                    PrintToPlayerChat(attacker!, Localizer["matchzy.pracc.damage", damage, victim.PlayerName, postDamageHealth]);
+                    PrintToPlayerChat(attacker!, Localizer["fragstack.pracc.damage", damage, victim.PlayerName, postDamageHealth]);
                     return HookResult.Continue;
                 }
 
@@ -494,7 +494,7 @@ namespace MatchZy
                         else
                         {
                             // ReplyToUserCommand(player, "Usage: .asay <message>");
-                            ReplyToUserCommand(player, Localizer["matchzy.cc.usage", ".asay <message>"]);
+                            ReplyToUserCommand(player, Localizer["fragstack.cc.usage", ".asay <message>"]);
                         }
                     }
                     else
@@ -550,7 +550,7 @@ namespace MatchZy
                 {
                     if (IsPlayerAdmin(player, "css_rcon", "@css/rcon"))
                     {
-                        Log($"[RCON] {player.PlayerName} ({player.SteamID}) executed: {MatchZySecurity.RedactConsoleCommand(messageCommandArg)}");
+                        Log($"[RCON] {player.PlayerName} ({player.SteamID}) executed: {FragstackSecurity.RedactConsoleCommand(messageCommandArg)}");
                         Server.ExecuteCommand(messageCommandArg);
                         ReplyToUserCommand(player, "Command sent successfully!");
                     }
@@ -606,7 +606,7 @@ namespace MatchZy
                 if (attacker!.IsValid)
                 {
                     double roundedBlindDuration = Math.Round(@event.BlindDuration, 2);
-                    PrintToPlayerChat(attacker, Localizer["matchzy.pracc.blind", player!.PlayerName, roundedBlindDuration]);
+                    PrintToPlayerChat(attacker, Localizer["fragstack.pracc.blind", player!.PlayerName, roundedBlindDuration]);
                 }
                 var userId = player!.UserId;
                 if (userId != null && noFlashList.Contains((int)userId))
@@ -624,7 +624,7 @@ namespace MatchZy
             RegisterEventHandler<EventDecoyStarted>(EventDecoyDetonateHandler);
             RegisterLiveEventHandlers();
 
-            Console.WriteLine($"[{ModuleName} {ModuleVersion} LOADED] MatchZy by WD- (https://github.com/shobhit-pathak/) {GetBuildDescription()}");
+            Console.WriteLine($"[{ModuleName} {ModuleVersion} LOADED] Fragstack {GetBuildDescription()}");
         }
     }
 }

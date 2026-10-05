@@ -1,4 +1,4 @@
-namespace MatchZy
+namespace Fragstack
 {
     // Helpers for round backups. This file must not depend on CounterStrikeSharp so that it can be unit tested (see tests/).
     public static class BackupLogic

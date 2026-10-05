@@ -1,16 +1,16 @@
 using Newtonsoft.Json.Linq;
 
-namespace MatchZy.Tests;
+namespace Fragstack.Tests;
 
 public class GameDataTests
 {
     private static JObject LoadGameData()
     {
-        // tests/MatchZy.Tests/bin/<config>/<tfm>/ -> repository root
+        // tests/Fragstack.Tests/bin/<config>/<tfm>/ -> repository root
         string? dir = AppContext.BaseDirectory;
-        while (dir != null && !File.Exists(Path.Combine(dir, "MatchZy.csproj"))) dir = Path.GetDirectoryName(dir);
+        while (dir != null && !File.Exists(Path.Combine(dir, "Fragstack.csproj"))) dir = Path.GetDirectoryName(dir);
         Assert.NotNull(dir);
-        return JObject.Parse(File.ReadAllText(Path.Combine(dir!, "gamedata", "matchzy.json")));
+        return JObject.Parse(File.ReadAllText(Path.Combine(dir!, "gamedata", "fragstack.json")));
     }
 
     [Theory]

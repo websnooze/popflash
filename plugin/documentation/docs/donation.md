@@ -1,7 +1,7 @@
 Donation
 ==============
 
-Support MatchZy and contribute towards building the best plugin for Pugs/Matches/Scrim/Practice :D
+Support Fragstack and contribute towards building the best plugin for Pugs/Matches/Scrim/Practice :D
 
 ## Buy Me A Coffee
 

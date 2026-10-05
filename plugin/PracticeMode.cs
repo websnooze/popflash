@@ -10,7 +10,7 @@ using System.Drawing;
 using System.Text.Json;
 
 
-namespace MatchZy
+namespace Fragstack
 {
     public class Position
     {
@@ -115,7 +115,7 @@ namespace MatchZy
         }
     }
 
-    public partial class MatchZy
+    public partial class Fragstack
     {
         int maxLastGrenadesSavedLimit = 512;
         Dictionary<int, List<GrenadeThrownData>> lastGrenadesData = new();
@@ -128,8 +128,8 @@ namespace MatchZy
 
         public Dictionary<byte, List<Position>> coachSpawns = GetEmptySpawnsData();
 
-        public const string practiceCfgPath = "MatchZy/prac.cfg";
-        public const string dryrunCfgPath = "MatchZy/dryrun.cfg";
+        public const string practiceCfgPath = "Fragstack/prac.cfg";
+        public const string dryrunCfgPath = "Fragstack/dryrun.cfg";
 
         // This map stores the bots which are being used in prac (probably spawned using .bot). Key is the userid of the bot.
         public Dictionary<int, Dictionary<string, object>> pracUsedBots = new Dictionary<int, Dictionary<string, object>>();
@@ -241,19 +241,19 @@ namespace MatchZy
                     if (spawnsData.ContainsKey(teamNum) && spawnsData[teamNum].Count <= spawnNumber) return;
                     player!.PlayerPawn.Value!.Teleport(spawnsData[teamNum][spawnNumber].PlayerPosition, spawnsData[teamNum][spawnNumber].PlayerAngle, new Vector(0, 0, 0));
                     // ReplyToUserCommand(player, $"Moved to spawn: {spawnNumber+1}/{spawnsData[teamNum].Count}");
-                    ReplyToUserCommand(player, Localizer["matchzy.pm.movedtospawn", $"{spawnNumber + 1}/{spawnsData[teamNum].Count}"]);
+                    ReplyToUserCommand(player, Localizer["fragstack.pm.movedtospawn", $"{spawnNumber + 1}/{spawnsData[teamNum].Count}"]);
                 }
                 else
                 {
                     // ReplyToUserCommand(player, $"Invalid value for {command} command. Please specify a valid non-negative number. Usage: !{command} <number>");
-                    ReplyToUserCommand(player, Localizer["matchzy.pm.negativenumber"]);
+                    ReplyToUserCommand(player, Localizer["fragstack.pm.negativenumber"]);
                     return;
                 }
             }
             else
             {
                 // ReplyToUserCommand(player, $"Usage: !{command} <number>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $"!{command} <number>"]);
+                ReplyToUserCommand(player, Localizer["fragstack.cc.usage", $"!{command} <number>"]);
             }
         }
 
@@ -306,7 +306,7 @@ namespace MatchZy
                 string nadeType = GetNadeType(player.PlayerPawn.Value.WeaponServices!.ActiveWeapon.Value!.DesignerName);
 
                 // Define the file path
-                string savednadesfileName = "MatchZy/savednades.json";
+                string savednadesfileName = "Fragstack/savednades.json";
                 string savednadesPath = Path.Join(Server.GameDirectory + "/csgo/cfg", savednadesfileName);
 
                 // Check if the file exists, if not, create it with an empty JSON object
@@ -332,7 +332,7 @@ namespace MatchZy
                         {
                             // Lineup already exists on the same map, reply to the user and return
                             // ReplyToUserCommand(player, $"Lineup already exists! Please use a different name or use .delnade <nade>");
-                            ReplyToUserCommand(player, Localizer["matchzy.pm.lineupissaved"]);
+                            ReplyToUserCommand(player, Localizer["fragstack.pm.lineupissaved"]);
                             return;
                         }
                     }
@@ -358,8 +358,8 @@ namespace MatchZy
                     // Write the updated JSON content back to the file
                     File.WriteAllText(savednadesPath, updatedJson);
 
-                    PrintToPlayerChat(player, Localizer["matchzy.pm.lineupsavedsucces", lineupName]);
-                    PrintToAllChat(Localizer["matchzy.pm.playersavedlineup", player.PlayerName, $"{lineupName} {playerPos} {playerAngle}"]);
+                    PrintToPlayerChat(player, Localizer["fragstack.pm.lineupsavedsucces", lineupName]);
+                    PrintToAllChat(Localizer["fragstack.pm.playersavedlineup", player.PlayerName, $"{lineupName} {playerPos} {playerAngle}"]);
                 }
                 catch (JsonException ex)
                 {
@@ -369,7 +369,7 @@ namespace MatchZy
             else
             {
                 // ReplyToUserCommand(player, $"Usage: .savenade <name>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $".savenade <name>"]);
+                ReplyToUserCommand(player, Localizer["fragstack.cc.usage", $".savenade <name>"]);
             }
         }
 
@@ -391,7 +391,7 @@ namespace MatchZy
                 }
 
                 // Define the file path
-                string savednadesfileName = "MatchZy/savednades.json";
+                string savednadesfileName = "Fragstack/savednades.json";
                 string savednadesPath = Path.Join(Server.GameDirectory + "/csgo/cfg", savednadesfileName);
 
                 try
@@ -423,18 +423,18 @@ namespace MatchZy
                             File.WriteAllText(savednadesPath, updatedJson);
 
                             // ReplyToUserCommand(player, $"Lineup '{saveNadeName}' deleted successfully.");
-                            ReplyToUserCommand(player, Localizer["matchzy.pm.lineupdeletesuccess", saveNadeName]);
+                            ReplyToUserCommand(player, Localizer["fragstack.pm.lineupdeletesuccess", saveNadeName]);
                         }
                         else
                         {
                             // ReplyToUserCommand(player, $"Lineup '{saveNadeName}' not found on the current map!");
-                            ReplyToUserCommand(player, Localizer["matchzy.pm.nadenotfoundonmap", saveNadeName]);
+                            ReplyToUserCommand(player, Localizer["fragstack.pm.nadenotfoundonmap", saveNadeName]);
                         }
                     }
                     else
                     {
                         // ReplyToUserCommand(player, $"Lineup '{saveNadeName}' not found!");
-                        ReplyToUserCommand(player, Localizer["matchzy.pm.lineupnotfound", saveNadeName]);
+                        ReplyToUserCommand(player, Localizer["fragstack.pm.lineupnotfound", saveNadeName]);
                     }
                 }
                 catch (JsonException ex)
@@ -445,7 +445,7 @@ namespace MatchZy
             else
             {
                 // ReplyToUserCommand(player, $"Usage: .delnade <name>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $".delnade <name>"]);
+                ReplyToUserCommand(player, Localizer["fragstack.cc.usage", $".delnade <name>"]);
             }
         }
 
@@ -471,7 +471,7 @@ namespace MatchZy
                         if (!posAng.All(LineupFormat.IsValidNumber))
                         {
                             // Saved as is, an invalid number would make the lineup fail every time it is loaded.
-                            ReplyToUserCommand(player, Localizer["matchzy.pm.importnadeinvalid"]);
+                            ReplyToUserCommand(player, Localizer["fragstack.pm.importnadeinvalid"]);
                             return;
                         }
 
@@ -480,7 +480,7 @@ namespace MatchZy
                         string currentMapName = Server.MapName;
 
                         // Define the file path
-                        string savednadesfileName = "MatchZy/savednades.json";
+                        string savednadesfileName = "Fragstack/savednades.json";
                         string savednadesPath = Path.Join(Server.GameDirectory + "/csgo/cfg", savednadesfileName);
 
                         // Read existing JSON content
@@ -500,7 +500,7 @@ namespace MatchZy
                             {
                                 // Lineup already exists on the same map, reply to the user and return
                                 // ReplyToUserCommand(player, $"Lineup '{lineupName}' already exists! Please use a different name or use .delnade <nade>");
-                                ReplyToUserCommand(player, Localizer["matchzy.pm.lineupalreadyexists", lineupName]);
+                                ReplyToUserCommand(player, Localizer["fragstack.pm.lineupalreadyexists", lineupName]);
                                 return;
                             }
                         }
@@ -526,12 +526,12 @@ namespace MatchZy
                         File.WriteAllText(savednadesPath, updatedJson);
 
                         // ReplyToUserCommand(player, $"Lineup '{lineupName}' imported and saved successfully.");
-                        ReplyToUserCommand(player, Localizer["matchzy.pm.lineupimportedsuccess"]);
+                        ReplyToUserCommand(player, Localizer["fragstack.pm.lineupimportedsuccess"]);
                     }
                     else
                     {
                         // ReplyToUserCommand(player, $"Invalid code format. Please provide a valid code with name, pos, and ang.");
-                        ReplyToUserCommand(player, Localizer["matchzy.pm.lineupinvalidcode"]);
+                        ReplyToUserCommand(player, Localizer["fragstack.pm.lineupinvalidcode"]);
                     }
                 }
                 catch (JsonException ex)
@@ -542,7 +542,7 @@ namespace MatchZy
             else
             {
                 // ReplyToUserCommand(player, $"Usage: .importnade <code>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $".importnade <code>"]);
+                ReplyToUserCommand(player, Localizer["fragstack.cc.usage", $".importnade <code>"]);
             }
         }
 
@@ -551,7 +551,7 @@ namespace MatchZy
             if (!isPractice || player == null) return;
 
             // Define the file path
-            string savednadesfileName = "MatchZy/savednades.json";
+            string savednadesfileName = "Fragstack/savednades.json";
             string savednadesPath = Path.Join(Server.GameDirectory + "/csgo/cfg", savednadesfileName);
 
             try
@@ -598,7 +598,7 @@ namespace MatchZy
             else
             {
                 // ReplyToUserCommand(player, $"No saved lineups found for the specified SteamID: ({steamID}).");
-                ReplyToUserCommand(player, Localizer["matchzy.pm.nosavedlineups", steamID]);
+                ReplyToUserCommand(player, Localizer["fragstack.pm.nosavedlineups", steamID]);
 
             }
         }
@@ -613,7 +613,7 @@ namespace MatchZy
                 string playerSteamID = player.SteamID.ToString();
 
                 // Define the file path
-                string savednadesfileName = "MatchZy/savednades.json";
+                string savednadesfileName = "Fragstack/savednades.json";
                 string savednadesPath = Path.Join(Server.GameDirectory + "/csgo/cfg", savednadesfileName);
 
                 try
@@ -656,7 +656,7 @@ namespace MatchZy
                                         || !LineupFormat.TryParse(lineupInfo["LineupAng"], out float angX, out float angY, out float angZ))
                                     {
                                         Log($"[LoadNade] Lineup {nearestName} has an invalid position or angle: {lineupInfo["LineupPos"]} / {lineupInfo["LineupAng"]}");
-                                        ReplyToUserCommand(player, Localizer["matchzy.pm.lineupinvalid", nearestName]);
+                                        ReplyToUserCommand(player, Localizer["fragstack.pm.lineupinvalid", nearestName]);
                                         return;
                                     }
                                     Vector loadedPlayerPos = new Vector(posX, posY, posZ);
@@ -693,13 +693,13 @@ namespace MatchZy
 
                                     // Print messages
                                     // ReplyToUserCommand(player, $"Lineup {ChatColors.Green}{nearestName}{ChatColors.Default} loaded successfully!");
-                                    ReplyToUserCommand(player, Localizer["matchzy.pm.lineuploadedsuccess", nearestName]);
+                                    ReplyToUserCommand(player, Localizer["fragstack.pm.lineuploadedsuccess", nearestName]);
 
                                     if (!string.IsNullOrWhiteSpace(lineupDesc))
                                     {
                                         player.PrintToCenter($"{lineupDesc}");
                                         // ReplyToUserCommand(player, $"Description: {ChatColors.Green}{lineupDesc}{ChatColors.Default}");
-                                        ReplyToUserCommand(player, Localizer["matchzy.pm.lineupdesc", lineupDesc]);
+                                        ReplyToUserCommand(player, Localizer["fragstack.pm.lineupdesc", lineupDesc]);
                                     }
 
                                     lineupFound = true;
@@ -708,7 +708,7 @@ namespace MatchZy
                                 else
                                 {
                                     // ReplyToUserCommand(player, $"Nade {ChatColor.Green}{nearestName}{ChatColor.Default} not found on the current map!");
-                                    ReplyToUserCommand(player, Localizer["matchzy.pm.nadenotfoundonmap", nearestName]);
+                                    ReplyToUserCommand(player, Localizer["fragstack.pm.nadenotfoundonmap", nearestName]);
                                     lineupOnWrongMap = true;
                                 }
                             }
@@ -719,7 +719,7 @@ namespace MatchZy
                     {
                         // Lineup not found
                         // ReplyToUserCommand(player, $"Nade {ChatColor.Green}{loadNadeName}{ChatColor.Default} not found!");
-                        ReplyToUserCommand(player, Localizer["matchzy.pm.nadenotfound", loadNadeName]);
+                        ReplyToUserCommand(player, Localizer["fragstack.pm.nadenotfound", loadNadeName]);
                     }
                 }
                 catch (JsonException ex)
@@ -730,7 +730,7 @@ namespace MatchZy
             else
             {
                 // ReplyToUserCommand(player, $"Nade not found! Usage: .loadnade <name>");
-                ReplyToUserCommand(player, Localizer["matchzy.pm.loadnadenotfound"]);
+                ReplyToUserCommand(player, Localizer["fragstack.pm.loadnadenotfound"]);
             }
         }
 
@@ -777,14 +777,14 @@ namespace MatchZy
 			{
 				player.PlayerPawn.Value.Health = 100;
 				// ReplyToUserCommand(player, $"God mode disabled!");
-                		ReplyToUserCommand(player, "God is " + Localizer["matchzy.cc.disabled"]);
+                		ReplyToUserCommand(player, "God is " + Localizer["fragstack.cc.disabled"]);
 				return;
 			}
 			else
 			{
 				player.PlayerPawn.Value.Health = 2147483647; // max 32bit int
 				// ReplyToUserCommand(player, $"God mode enabled!");
-                		ReplyToUserCommand(player, "God is " + Localizer["matchzy.cc.enabled"]);
+                		ReplyToUserCommand(player, "God is " + Localizer["fragstack.cc.enabled"]);
 				return;
 			}
         }
@@ -801,7 +801,7 @@ namespace MatchZy
             if (matchStarted)
             {
                 // ReplyToUserCommand(player, "Practice Mode cannot be started when a match has been started!");
-                ReplyToUserCommand(player, Localizer["matchzy.pm.pracmatchstarted"]);
+                ReplyToUserCommand(player, Localizer["fragstack.pm.pracmatchstarted"]);
                 return;
             }
 	    
@@ -825,13 +825,13 @@ namespace MatchZy
             if (matchStarted)
             {
                 // ReplyToUserCommand(player, "Dryrun cannot be started when a match has been started!");
-                ReplyToUserCommand(player, Localizer["matchzy.pm.dryrunmatchstarted"]);
+                ReplyToUserCommand(player, Localizer["fragstack.pm.dryrunmatchstarted"]);
                 return;
             }
             if (!isPractice)
             {
                 // ReplyToUserCommand(player, "Dryrun can only be started in practice mode!");
-                ReplyToUserCommand(player, Localizer["matchzy.pm.dryrunnopractice"]);
+                ReplyToUserCommand(player, Localizer["fragstack.pm.dryrunnopractice"]);
                 return;
             }
 
@@ -861,7 +861,7 @@ namespace MatchZy
             else
             {
                 // ReplyToUserCommand(player, $"Usage: !spawn <round>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $"!spawn <round>"]);
+                ReplyToUserCommand(player, Localizer["fragstack.cc.usage", $"!spawn <round>"]);
             }
         }
 
@@ -881,7 +881,7 @@ namespace MatchZy
             else
             {
                 // ReplyToUserCommand(player, $"Usage: !ctspawn <round>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $"!ctspawn <round>"]);
+                ReplyToUserCommand(player, Localizer["fragstack.cc.usage", $"!ctspawn <round>"]);
             }
         }
 
@@ -901,7 +901,7 @@ namespace MatchZy
             else
             {
                 // ReplyToUserCommand(player, $"Usage: !ctspawn <round>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $"!ctspawn <round>"]);
+                ReplyToUserCommand(player, Localizer["fragstack.cc.usage", $"!ctspawn <round>"]);
             }
         }
 
@@ -962,7 +962,7 @@ namespace MatchZy
                 if (HasLaunchOption("-nobots"))
                 {
                     // The engine would still create a bot, but without a player model: an invisible bot that can be shot.
-                    PrintToPlayerChat(player, Localizer["matchzy.pm.botsdisabled"]);
+                    PrintToPlayerChat(player, Localizer["fragstack.pm.botsdisabled"]);
                     return false;
                 }
                 CsTeam team = (CsTeam)player.TeamNum switch
@@ -974,7 +974,7 @@ namespace MatchZy
                 if (team == CsTeam.None) return false; // Spectators get no bot, as before.
                 if (!HasFreeSlotForBot())
                 {
-                    PrintToPlayerChat(player, Localizer["matchzy.pm.botserverfull"]);
+                    PrintToPlayerChat(player, Localizer["fragstack.pm.botserverfull"]);
                     return false;
                 }
                 var sceneNode = player.PlayerPawn.Value.CBodyComponent?.SceneNode;
@@ -1079,7 +1079,7 @@ namespace MatchZy
                 if (claimedBot == null)
                 {
                     Log("[ClaimBot] No bot arrived for the .bot request");
-                    PrintToAllChat(Localizer["matchzy.pm.botlimit"]);
+                    PrintToAllChat(Localizer["fragstack.pm.botlimit"]);
                     return;
                 }
 
@@ -1260,7 +1260,7 @@ namespace MatchZy
                 Utilities.SetStateChanged(pawn, "CBaseEntity", "m_MoveType");
             }
 
-            if (matchStarted && (matchzyTeam1.coach.Contains(player!) || matchzyTeam2.coach.Contains(player!)))
+            if (matchStarted && (fragstackTeam1.coach.Contains(player!) || fragstackTeam2.coach.Contains(player!)))
             {
                 player!.InGameMoneyServices!.Account = 0;
 
@@ -1439,7 +1439,7 @@ namespace MatchZy
           if (team > CsTeam.None) {
             if(player.TeamNum == (byte)CsTeam.Spectator && team != CsTeam.Spectator) {
               // ReplyToUserCommand(player, "Switching to a team from spectator is currently broken, use the team menu.");
-              ReplyToUserCommand(player, Localizer["matchzy.pm.spectatorbroken"]);
+              ReplyToUserCommand(player, Localizer["fragstack.pm.spectatorbroken"]);
               return;
             }
             MovePlayerToTeamSafely(player, team);
@@ -1567,14 +1567,14 @@ namespace MatchZy
             if (!lastGrenadesData.ContainsKey(userId) || lastGrenadesData[userId].Count <= 0)
             {
                 // PrintToPlayerChat(player, $"You have not thrown any nade yet!");
-                PrintToPlayerChat(player, Localizer["matchzy.pm.nothrownnades"]);
+                PrintToPlayerChat(player, Localizer["fragstack.pm.nothrownnades"]);
                 return false;
             }
 
             if (lastGrenadesData[userId].Count < position)
             {
                 // PrintToPlayerChat(player, $"Your grenade history only goes from 1 to {lastGrenadesData[userId].Count}!");
-                PrintToPlayerChat(player, Localizer["matchzy.pm.grenadehistory", $"{lastGrenadesData[userId].Count}"]);
+                PrintToPlayerChat(player, Localizer["fragstack.pm.grenadehistory", $"{lastGrenadesData[userId].Count}"]);
                 return false;
             }
 
@@ -1588,7 +1588,7 @@ namespace MatchZy
             if (!nadeSpecificLastGrenadeData.ContainsKey(userId) || !nadeSpecificLastGrenadeData[userId].ContainsKey(nadeType))
             {
                 // PrintToPlayerChat(player, $"You have not thrown any {nadeType} yet!");
-                PrintToPlayerChat(player, Localizer["matchzy.pm.nothrownnadestype", nadeType]);
+                PrintToPlayerChat(player, Localizer["fragstack.pm.nothrownnadestype", nadeType]);
                 return;
             }
             GrenadeThrownData grenadeThrown = nadeSpecificLastGrenadeData[userId][nadeType];
@@ -1609,14 +1609,14 @@ namespace MatchZy
                         if (lastGrenadesData[userId][positionNumber].LoadPosition(player))
                         {
                             // PrintToPlayerChat(player, $"Teleported to grenade of history position: {positionNumber+1}/{lastGrenadesData[userId].Count}");
-                            PrintToPlayerChat(player, Localizer["matchzy.pm.tptogrenade", $"{positionNumber + 1}/{lastGrenadesData[userId].Count}"]);
+                            PrintToPlayerChat(player, Localizer["fragstack.pm.tptogrenade", $"{positionNumber + 1}/{lastGrenadesData[userId].Count}"]);
                         }
                     }
                 }
                 else
                 {
                     // PrintToPlayerChat(player, $"Invalid value for !back command. Please specify a valid non-negative number. Usage: !back <number>");
-                    PrintToPlayerChat(player, Localizer["matchzy.pm.backinvalidvalue"]);
+                    PrintToPlayerChat(player, Localizer["fragstack.pm.backinvalidvalue"]);
                     return;
                 }
             }
@@ -1624,7 +1624,7 @@ namespace MatchZy
             {
                 int thrownCount = lastGrenadesData.ContainsKey(userId) ? lastGrenadesData[userId].Count : 0;
                 // ReplyToUserCommand(player, $"Usage: !back <number> (You've thrown {thrownCount} grenades till now)");
-                ReplyToUserCommand(player, Localizer["matchzy.pm.backtonumber", thrownCount]);
+                ReplyToUserCommand(player, Localizer["fragstack.pm.backtonumber", thrownCount]);
             }
         }
 
@@ -1637,7 +1637,7 @@ namespace MatchZy
             {
                 int thrownCount = lastGrenadesData.ContainsKey(userId) ? lastGrenadesData[userId].Count : 0;
                 // ReplyToUserCommand(player, $"Usage: !throwindex <number> (You've thrown {thrownCount} grenades till now)");
-                ReplyToUserCommand(player, Localizer["matchzy.pm.throwindextonumber", thrownCount]);
+                ReplyToUserCommand(player, Localizer["fragstack.pm.throwindextonumber", thrownCount]);
                 return;
             }
 
@@ -1653,13 +1653,13 @@ namespace MatchZy
                         GrenadeThrownData grenadeThrown = lastGrenadesData[userId][positionNumber];
                         AddTimer(grenadeThrown.Delay, () => grenadeThrown.Throw(player));
                         // PrintToPlayerChat(player, $"Throwing grenade of history position: {positionNumber+1}/{lastGrenadesData[userId].Count}");
-                        PrintToPlayerChat(player, Localizer["matchzy.pm.throwgrenadehistory", $"{positionNumber + 1}/{lastGrenadesData[userId].Count}"]);
+                        PrintToPlayerChat(player, Localizer["fragstack.pm.throwgrenadehistory", $"{positionNumber + 1}/{lastGrenadesData[userId].Count}"]);
                     }
                 }
                 else
                 {
                     // PrintToPlayerChat(player, $"'{arg}' is not a valid non-negative number for !throwindex command.");
-                    PrintToPlayerChat(player, Localizer["matchzy.pm.backnegativenumber", arg]);
+                    PrintToPlayerChat(player, Localizer["fragstack.pm.backnegativenumber", arg]);
                 }
             }
         }
@@ -1673,7 +1673,7 @@ namespace MatchZy
             if (string.IsNullOrWhiteSpace(delay))
             {
                 // ReplyToUserCommand(player, $"Usage: !delay <delay_in_seconds>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $"!delay <delay_in_seconds>"]);
+                ReplyToUserCommand(player, Localizer["fragstack.cc.usage", $"!delay <delay_in_seconds>"]);
                 return;
             }
             
@@ -1683,14 +1683,14 @@ namespace MatchZy
                 {
                     lastGrenadesData[userId].Last().Delay = delayInSeconds;
                     // PrintToPlayerChat(player, $"Delay of {delayInSeconds:0.00}s set for grenade of index: {lastGrenadesData[userId].Count}.");
-                    PrintToPlayerChat(player, Localizer["matchzy.pm.delaygrenade", $"{delayInSeconds:0.00}", $"{lastGrenadesData[userId].Count}"]);
+                    PrintToPlayerChat(player, Localizer["fragstack.pm.delaygrenade", $"{delayInSeconds:0.00}", $"{lastGrenadesData[userId].Count}"]);
                 }
             }
             else
             {
                 // PrintToPlayerChat(player, $"Delay of {delayInSeconds:0.00}s set for grenade of index: {lastGrenadesData[userId].Count}.);
                 int thrownCount = lastGrenadesData.TryGetValue(userId, out var thrownGrenades) ? thrownGrenades.Count : 0;
-                PrintToPlayerChat(player, Localizer["matchzy.pm.delayvalidnumber", $"{delayInSeconds:0.00}", $"{thrownCount}"]);
+                PrintToPlayerChat(player, Localizer["fragstack.pm.delayvalidnumber", $"{delayInSeconds:0.00}", $"{thrownCount}"]);
                 return;
             }
         }
@@ -1712,7 +1712,7 @@ namespace MatchZy
             if (!lastGrenadesData.ContainsKey(userId) || lastGrenadesData[userId].Count <= 0)
             {
                 // PrintToPlayerChat(player, $"You have not thrown any nade yet!");
-                PrintToPlayerChat(player, Localizer["matchzy.pm.notthrownnade"]);
+                PrintToPlayerChat(player, Localizer["fragstack.pm.notthrownnade"]);
                 return;
             }
             GrenadeThrownData lastGrenade = lastGrenadesData[userId].Last();
@@ -1731,7 +1731,7 @@ namespace MatchZy
             
             savedPlayerLocationData[userId] = new PlayerLocationData(position, angle);
             Log($"[SavePos] Saved position for UserID {userId}, Position: {position}, Angle: {angle}!");
-            PrintToPlayerChat(player, Localizer["matchzy.pm.savepos"]);
+            PrintToPlayerChat(player, Localizer["fragstack.pm.savepos"]);
         }
 
         [ConsoleCommand("css_loadpos", "Loads the last saved player location")]
@@ -1742,13 +1742,13 @@ namespace MatchZy
             int userId = player.UserId.Value;
             if (!savedPlayerLocationData.TryGetValue(userId, out var playerLocationData))
             {
-                PrintToPlayerChat(player, Localizer["matchzy.pm.notsavedpos"]);
+                PrintToPlayerChat(player, Localizer["fragstack.pm.notsavedpos"]);
                 return;
             }
             
             Log($"[LoadPos] LoadPos position for UserID {userId}, Position: {playerLocationData.Position}, Angles: {playerLocationData.Angle}!");
             playerLocationData.LoadPosition(player);
-            PrintToPlayerChat(player, Localizer["matchzy.pm.loadpos"]);
+            PrintToPlayerChat(player, Localizer["fragstack.pm.loadpos"]);
         }
 
         [ConsoleCommand("css_throwsmoke", "Throws the last thrown smoke")]
@@ -1801,7 +1801,7 @@ namespace MatchZy
             if (!lastGrenadesData.ContainsKey(userId) || lastGrenadesData[userId].Count <= 0)
             {
                 // PrintToPlayerChat(player, $"You have not thrown any nade yet!");
-                PrintToPlayerChat(player, Localizer["matchzy.pm.notthrownnade"]);
+                PrintToPlayerChat(player, Localizer["fragstack.pm.notthrownnade"]);
                 return;
             }
             lastGrenadesData[userId].Last().LoadPosition(player);
@@ -1821,7 +1821,7 @@ namespace MatchZy
                 int userId = player!.UserId!.Value;
                 int thrownCount = lastGrenadesData.ContainsKey(userId) ? lastGrenadesData[userId].Count : 0;
                 // ReplyToUserCommand(player, $"Usage: !back <number> (You've thrown {thrownCount} grenades till now)");
-                ReplyToUserCommand(player, Localizer["matchzy.pm.backtonumber", thrownCount]);
+                ReplyToUserCommand(player, Localizer["fragstack.pm.backtonumber", thrownCount]);
             }      
         }
 
@@ -1839,7 +1839,7 @@ namespace MatchZy
                 int userId = player!.UserId!.Value;
                 int thrownCount = lastGrenadesData.ContainsKey(userId) ? lastGrenadesData[userId].Count : 0;
                 // ReplyToUserCommand(player, $"Usage: !throwindex <number> (You've thrown {thrownCount} grenades till now)");
-                ReplyToUserCommand(player, Localizer["matchzy.pm.throwindextonumber", thrownCount]);
+                ReplyToUserCommand(player, Localizer["fragstack.pm.throwindextonumber", thrownCount]);
             }      
         }
 
@@ -1850,7 +1850,7 @@ namespace MatchZy
             if (IsValidPositionForLastGrenade(player!, 1))
             {
                 // PrintToPlayerChat(player!, $"Index of last thrown grenade: {lastGrenadesData[player!.UserId!.Value].Count}");
-                PrintToPlayerChat(player!, Localizer["matchzy.pm.indexlastgrenade", $"{lastGrenadesData[player!.UserId!.Value].Count}"]);
+                PrintToPlayerChat(player!, Localizer["fragstack.pm.indexlastgrenade", $"{lastGrenadesData[player!.UserId!.Value].Count}"]);
             } 
         }
 
@@ -1865,7 +1865,7 @@ namespace MatchZy
             else 
             {
                 // ReplyToUserCommand(player, $"Usage: !delay <delay_in_seconds>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $"!delay <delay_in_seconds>"]);
+                ReplyToUserCommand(player, Localizer["fragstack.cc.usage", $"!delay <delay_in_seconds>"]);
             }      
         }
 
@@ -2050,7 +2050,7 @@ namespace MatchZy
             if (spawnsData.Values.Any(list => list.Count == 0)) GetSpawns();
             if (!spawnsData.TryGetValue(teamNum, out List<Position>? teamSpawns) || teamSpawns.Count == 0)
             {
-                PrintToPlayerChat(player, Localizer["matchzy.pm.nospawns"]);
+                PrintToPlayerChat(player, Localizer["fragstack.pm.nospawns"]);
                 return;
             }
             Vector playerPosition = player!.PlayerPawn!.Value!.CBodyComponent!.SceneNode!.AbsOrigin;
@@ -2075,7 +2075,7 @@ namespace MatchZy
             if (spawnsData.Values.Any(list => list.Count == 0)) GetSpawns();
             if (!spawnsData.TryGetValue(teamNum, out List<Position>? teamSpawns) || teamSpawns.Count == 0)
             {
-                PrintToPlayerChat(player, Localizer["matchzy.pm.nospawns"]);
+                PrintToPlayerChat(player, Localizer["fragstack.pm.nospawns"]);
                 return;
             }
             Vector playerPosition = player!.PlayerPawn!.Value!.CBodyComponent!.SceneNode!.AbsOrigin;

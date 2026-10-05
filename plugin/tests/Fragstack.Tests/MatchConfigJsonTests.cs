@@ -1,7 +1,7 @@
-using MatchZy;
+using Fragstack;
 using Newtonsoft.Json.Linq;
 
-namespace MatchZy.Tests;
+namespace Fragstack.Tests;
 
 public class MatchConfigJsonTests
 {

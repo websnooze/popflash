@@ -3,9 +3,9 @@ using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Utils;
 
-namespace MatchZy;
+namespace Fragstack;
 
-public partial class MatchZy
+public partial class Fragstack
 {
     public Dictionary<CsTeam, bool> teamReadyOverride = new() {
         {CsTeam.Terrorist, false},
@@ -113,7 +113,7 @@ public partial class MatchZy
         if (playerCount < minReady) 
         {
             // ReplyToUserCommand(player, $"You must have at least {minReady} player(s) on the server to ready up.");
-            ReplyToUserCommand(player, Localizer["matchzy.rs.minreadyplayers", minReady]);
+            ReplyToUserCommand(player, Localizer["fragstack.rs.minreadyplayers", minReady]);
             return;
         }
 
@@ -123,7 +123,7 @@ public partial class MatchZy
             if (playerData[key].TeamNum == player.TeamNum) {
                 playerReadyStatus[key] = true;
                 // ReplyToUserCommand(playerData[key], $"Your team was force-readied by {player.PlayerName}");
-                ReplyToUserCommand(playerData[key], Localizer["matchzy.rs.forcereadiedby", player.PlayerName]);
+                ReplyToUserCommand(playerData[key], Localizer["fragstack.rs.forcereadiedby", player.PlayerName]);
             }
         }
 

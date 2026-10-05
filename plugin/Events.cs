@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
 
-namespace MatchZy;
-public class MatchZyEvent
+namespace Fragstack;
+public class FragstackEvent
 {
-    public MatchZyEvent(string eventName)
+    public FragstackEvent(string eventName)
     {
         EventName = eventName;
     }
@@ -12,89 +12,89 @@ public class MatchZyEvent
     public string EventName { get; }
 }
 
-public class MatchZyMatchEvent : MatchZyEvent
+public class FragstackMatchEvent : FragstackEvent
 {
     [JsonPropertyName("matchid")]
     public required long MatchId { get; init; }
 
-    protected MatchZyMatchEvent(string eventName) : base(eventName)
+    protected FragstackMatchEvent(string eventName) : base(eventName)
     {
     }
 }
 
-public class MatchZyMatchTeamEvent : MatchZyMatchEvent
+public class FragstackMatchTeamEvent : FragstackMatchEvent
 {
     [JsonPropertyName("team")]
     public required string Team { get; init; }
 
-    protected MatchZyMatchTeamEvent(string eventName) : base(eventName)
+    protected FragstackMatchTeamEvent(string eventName) : base(eventName)
     {
     }
 }
 
-public class MatchZyMapEvent : MatchZyMatchEvent
+public class FragstackMapEvent : FragstackMatchEvent
 {
     [JsonPropertyName("map_number")]
     public required int MapNumber { get; init; }
 
-    protected MatchZyMapEvent(string eventName) : base(eventName)
+    protected FragstackMapEvent(string eventName) : base(eventName)
     {
     }
 }
 
-public class MatchZyMapTeamEvent : MatchZyMapEvent
+public class FragstackMapTeamEvent : FragstackMapEvent
 {
     [JsonPropertyName("team_int")]
     public required int TeamNumber { get; init; }
 
-    protected MatchZyMapTeamEvent(string eventName) : base(eventName)
+    protected FragstackMapTeamEvent(string eventName) : base(eventName)
     {
     }
 }
 
-public class MatchZyRoundEvent : MatchZyMapEvent
+public class FragstackRoundEvent : FragstackMapEvent
 {
     [JsonPropertyName("round_number")]
     public required int RoundNumber { get; init; }
 
-    protected MatchZyRoundEvent(string eventName) : base(eventName)
+    protected FragstackRoundEvent(string eventName) : base(eventName)
     {
     }
 }
 
-public class MatchZyTimedRoundEvent : MatchZyRoundEvent
+public class FragstackTimedRoundEvent : FragstackRoundEvent
 {
     [JsonPropertyName("round_time")]
     public required int RoundTime { get; init; }
 
-    protected MatchZyTimedRoundEvent(string eventName) : base(eventName)
+    protected FragstackTimedRoundEvent(string eventName) : base(eventName)
     {
     }
 }
 
-public class MatchZyPlayerRoundEvent : MatchZyRoundEvent
+public class FragstackPlayerRoundEvent : FragstackRoundEvent
 {
 
     [JsonPropertyName("player")]
-    public required MatchZyPlayer Player { get; init; }
+    public required FragstackPlayer Player { get; init; }
 
-    protected MatchZyPlayerRoundEvent(string eventName) : base(eventName)
+    protected FragstackPlayerRoundEvent(string eventName) : base(eventName)
     {
     }
 }
 
-public class MatchZyPlayerTimedRoundEvent : MatchZyTimedRoundEvent
+public class FragstackPlayerTimedRoundEvent : FragstackTimedRoundEvent
 {
     [JsonPropertyName("player")]
-    public required MatchZyPlayer Player { get; init; }
+    public required FragstackPlayer Player { get; init; }
 
-    protected MatchZyPlayerTimedRoundEvent(string eventName) : base(eventName)
+    protected FragstackPlayerTimedRoundEvent(string eventName) : base(eventName)
     {
     }
 }
 
 // Get5Player: a player in the live events.
-public class MatchZyPlayer
+public class FragstackPlayer
 {
     // SteamID64, or BOT-<user_id> for bots.
     [JsonPropertyName("steamid")]
@@ -115,7 +115,7 @@ public class MatchZyPlayer
 }
 
 // Get5Weapon: the game's weapon name and SourceMod's weapon id (0 when it has none).
-public class MatchZyWeapon
+public class FragstackWeapon
 {
     [JsonPropertyName("name")]
     public required string Name { get; init; }
@@ -125,10 +125,10 @@ public class MatchZyWeapon
 }
 
 // Get5AssisterObject
-public class MatchZyAssist
+public class FragstackAssist
 {
     [JsonPropertyName("player")]
-    public required MatchZyPlayer Player { get; init; }
+    public required FragstackPlayer Player { get; init; }
 
     [JsonPropertyName("friendly_fire")]
     public required bool FriendlyFire { get; init; }
@@ -138,10 +138,10 @@ public class MatchZyAssist
 }
 
 // Get5PlayerDeathEvent. player is the victim; attacker and assist are null when there is none.
-public class MatchZyPlayerDeathEvent : MatchZyPlayerTimedRoundEvent
+public class FragstackPlayerDeathEvent : FragstackPlayerTimedRoundEvent
 {
     [JsonPropertyName("weapon")]
-    public required MatchZyWeapon Weapon { get; init; }
+    public required FragstackWeapon Weapon { get; init; }
 
     [JsonPropertyName("bomb")]
     public required bool Bomb { get; init; }
@@ -169,86 +169,86 @@ public class MatchZyPlayerDeathEvent : MatchZyPlayerTimedRoundEvent
     public required bool FriendlyFire { get; init; }
 
     [JsonPropertyName("attacker")]
-    public MatchZyPlayer? Attacker { get; init; }
+    public FragstackPlayer? Attacker { get; init; }
 
     [JsonPropertyName("assist")]
-    public MatchZyAssist? Assist { get; init; }
+    public FragstackAssist? Assist { get; init; }
 
-    public MatchZyPlayerDeathEvent() : base("player_death")
+    public FragstackPlayerDeathEvent() : base("player_death")
     {
     }
 }
 
 // Get5PlayerBombEvent: bomb_planted / bomb_defused. site is "a", "b" or null.
-public class MatchZyBombEvent : MatchZyPlayerTimedRoundEvent
+public class FragstackBombEvent : FragstackPlayerTimedRoundEvent
 {
     [JsonPropertyName("site")]
     public string? Site { get; init; }
 
-    public MatchZyBombEvent(string eventName) : base(eventName)
+    public FragstackBombEvent(string eventName) : base(eventName)
     {
     }
 }
 
-public class MatchZyBombDefusedEvent : MatchZyBombEvent
+public class FragstackBombDefusedEvent : FragstackBombEvent
 {
     // Milliseconds left on the bomb timer.
     [JsonPropertyName("bomb_time_remaining")]
     public required int BombTimeRemaining { get; init; }
 
-    public MatchZyBombDefusedEvent() : base("bomb_defused")
+    public FragstackBombDefusedEvent() : base("bomb_defused")
     {
     }
 }
 
 // round_start: when freeze time begins.
-public class MatchZyRoundStartedEvent : MatchZyRoundEvent
+public class FragstackRoundStartedEvent : FragstackRoundEvent
 {
-    public MatchZyRoundStartedEvent() : base("round_start")
+    public FragstackRoundStartedEvent() : base("round_start")
     {
     }
 }
 
 // backup_loaded: round_number is the round restored to.
-public class MatchZyBackupRestoredEvent : MatchZyRoundEvent
+public class FragstackBackupRestoredEvent : FragstackRoundEvent
 {
     [JsonPropertyName("filename")]
     public required string FileName { get; init; }
 
-    public MatchZyBackupRestoredEvent() : base("backup_loaded")
+    public FragstackBackupRestoredEvent() : base("backup_loaded")
     {
     }
 }
 
 // Get5PlayerDisconnectedEvent
-public class MatchZyPlayerDisconnectedEvent : MatchZyMatchEvent
+public class FragstackPlayerDisconnectedEvent : FragstackMatchEvent
 {
     [JsonPropertyName("player")]
-    public required MatchZyPlayer Player { get; init; }
+    public required FragstackPlayer Player { get; init; }
 
-    public MatchZyPlayerDisconnectedEvent() : base("player_disconnect")
+    public FragstackPlayerDisconnectedEvent() : base("player_disconnect")
     {
     }
 }
 
-public class MatchZySeriesStartedEvent : MatchZyMatchEvent
+public class FragstackSeriesStartedEvent : FragstackMatchEvent
 {
     [JsonPropertyName("team1")]
-    public required MatchZyTeamWrapper Team1 { get; init; }
+    public required FragstackTeamWrapper Team1 { get; init; }
 
     [JsonPropertyName("team2")]
-    public required MatchZyTeamWrapper Team2 { get; init; }
+    public required FragstackTeamWrapper Team2 { get; init; }
 
     [JsonPropertyName("num_maps")]
     public required int NumberOfMaps { get; init; }
 
-    public MatchZySeriesStartedEvent() : base("series_start")
+    public FragstackSeriesStartedEvent() : base("series_start")
     {
     }
 }
 
 // game_paused / game_unpaused, as in Get5.
-public class MatchZyPauseEvent : MatchZyMapEvent
+public class FragstackPauseEvent : FragstackMapEvent
 {
     [JsonPropertyName("team")]
     public required string Team { get; init; }
@@ -256,12 +256,12 @@ public class MatchZyPauseEvent : MatchZyMapEvent
     [JsonPropertyName("pause_type")]
     public required string PauseType { get; init; }
 
-    public MatchZyPauseEvent(string eventName) : base(eventName)
+    public FragstackPauseEvent(string eventName) : base(eventName)
     {
     }
 }
 
-public class MatchZySeriesResultEvent : MatchZyMatchEvent
+public class FragstackSeriesResultEvent : FragstackMatchEvent
 {
     [JsonPropertyName("time_until_restore")]
     public required int TimeUntilRestore { get; init; }
@@ -275,19 +275,19 @@ public class MatchZySeriesResultEvent : MatchZyMatchEvent
     [JsonPropertyName("team2_series_score")]
     public required int Team2SeriesScore { get; init; }
 
-    public MatchZySeriesResultEvent() : base("series_end")
+    public FragstackSeriesResultEvent() : base("series_end")
     {
     }
 }
 
-public class GoingLiveEvent : MatchZyMapEvent
+public class GoingLiveEvent : FragstackMapEvent
 {
     public GoingLiveEvent() : base("going_live")
     {
     }
 }
 
-public class MatchZyRoundEndedEvent : MatchZyTimedRoundEvent
+public class FragstackRoundEndedEvent : FragstackTimedRoundEvent
 {
 
     [JsonPropertyName("reason")]
@@ -297,60 +297,60 @@ public class MatchZyRoundEndedEvent : MatchZyTimedRoundEvent
     public required Winner Winner { get; init; }
 
     [JsonPropertyName("team1")]
-    public required MatchZyStatsTeam StatsTeam1 { get; init; }
+    public required FragstackStatsTeam StatsTeam1 { get; init; }
 
     [JsonPropertyName("team2")]
-    public required MatchZyStatsTeam StatsTeam2 { get; init; }
+    public required FragstackStatsTeam StatsTeam2 { get; init; }
 
-    public MatchZyRoundEndedEvent() : base("round_end")
+    public FragstackRoundEndedEvent() : base("round_end")
     {
     }
 }
 
-public class MapResultEvent : MatchZyMapEvent
+public class MapResultEvent : FragstackMapEvent
 {
     [JsonPropertyName("winner")]
     public required Winner Winner { get; init; }
 
     [JsonPropertyName("team1")]
-    public required MatchZyStatsTeam StatsTeam1 { get; init; }
+    public required FragstackStatsTeam StatsTeam1 { get; init; }
 
     [JsonPropertyName("team2")]
-    public required MatchZyStatsTeam StatsTeam2 { get; init; }
+    public required FragstackStatsTeam StatsTeam2 { get; init; }
 
     public MapResultEvent() : base("map_result")
     {
     }
 }
 
-public class MatchZyMapSelectionEvent : MatchZyMatchTeamEvent
+public class FragstackMapSelectionEvent : FragstackMatchTeamEvent
 {
     [JsonPropertyName("map_name")]
     public required string MapName { get; init; }
 
-    protected MatchZyMapSelectionEvent(string eventName) : base(eventName)
+    protected FragstackMapSelectionEvent(string eventName) : base(eventName)
     {
     }
 }
 
-public class MatchZyMapPickedEvent : MatchZyMapSelectionEvent
+public class FragstackMapPickedEvent : FragstackMapSelectionEvent
 {
     [JsonPropertyName("map_number")]
     public required int MapNumber { get; init; }
 
-    public MatchZyMapPickedEvent() : base("map_picked")
+    public FragstackMapPickedEvent() : base("map_picked")
     {
     }
 }
 
-public class MatchZyMapVetoedEvent : MatchZyMapSelectionEvent
+public class FragstackMapVetoedEvent : FragstackMapSelectionEvent
 {
-    public MatchZyMapVetoedEvent() : base("map_vetoed")
+    public FragstackMapVetoedEvent() : base("map_vetoed")
     {
     }
 }
 
-public class MatchZySidePickedEvent : MatchZyMapSelectionEvent
+public class FragstackSidePickedEvent : FragstackMapSelectionEvent
 {
     [JsonPropertyName("map_number")]
     public required int MapNumber { get; init; }
@@ -358,12 +358,12 @@ public class MatchZySidePickedEvent : MatchZyMapSelectionEvent
     [JsonPropertyName("side")]
     public required string Side { get; init; }
 
-    public MatchZySidePickedEvent() : base("side_picked")
+    public FragstackSidePickedEvent() : base("side_picked")
     {
     }
 }
 
-public class MatchZyDemoUploadedEvent : MatchZyMatchEvent
+public class FragstackDemoUploadedEvent : FragstackMatchEvent
 {
     [JsonPropertyName("map_number")]
     public required int MapNumber { get; init; }
@@ -374,7 +374,7 @@ public class MatchZyDemoUploadedEvent : MatchZyMatchEvent
     [JsonPropertyName("success")]
     public bool Success { get; set; }
 
-    public MatchZyDemoUploadedEvent() : base("demo_upload_ended")
+    public FragstackDemoUploadedEvent() : base("demo_upload_ended")
     {
     }
 }

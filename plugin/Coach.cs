@@ -4,17 +4,17 @@ using CounterStrikeSharp.API.Modules.Utils;
 using CounterStrikeSharp.API.Modules.Cvars;
 using System.Text.Json;
 
-namespace MatchZy;
+namespace Fragstack;
 
-public partial class MatchZy
+public partial class Fragstack
 {
 
     public CounterStrikeSharp.API.Modules.Timers.Timer? coachKillTimer = null;
 
     public HashSet<CCSPlayerController> GetAllCoaches()
     {
-        HashSet<CCSPlayerController> coaches = new(matchzyTeam1.coach);
-        coaches.UnionWith(matchzyTeam2.coach);
+        HashSet<CCSPlayerController> coaches = new(fragstackTeam1.coach);
+        coaches.UnionWith(fragstackTeam2.coach);
 
         return coaches;
     }
@@ -41,37 +41,37 @@ public partial class MatchZy
             return;
         }
 
-        if (matchzyTeam1.coach.Contains(player!) || matchzyTeam2.coach.Contains(player!))
+        if (fragstackTeam1.coach.Contains(player!) || fragstackTeam2.coach.Contains(player!))
         {
             ReplyToUserCommand(player, "You are already coaching a team!");
             return;
         }
 
-        Team matchZyCoachTeam;
+        Team fragstackCoachTeam;
 
         if (side == "t")
         {
-            matchZyCoachTeam = reverseTeamSides["TERRORIST"];
+            fragstackCoachTeam = reverseTeamSides["TERRORIST"];
         }
         else if (side == "ct")
         {
-            matchZyCoachTeam = reverseTeamSides["CT"];
+            fragstackCoachTeam = reverseTeamSides["CT"];
         }
         else
         {
             return;
         }
 
-        // if (matchZyCoachTeam.coach != null) {
+        // if (fragstackCoachTeam.coach != null) {
         //     ReplyToUserCommand(player, "Coach slot for this team has been already taken!");
         //     return;
         // }
 
-        matchZyCoachTeam.coach.Add(player!);
-        player!.Clan = $"[{matchZyCoachTeam.teamName} COACH]";
+        fragstackCoachTeam.coach.Add(player!);
+        player!.Clan = $"[{fragstackCoachTeam.teamName} COACH]";
         if (player.InGameMoneyServices != null) player.InGameMoneyServices.Account = 0;
-        ReplyToUserCommand(player, $"You are now coaching {matchZyCoachTeam.teamName}! Use .uncoach to stop coaching");
-        PrintToAllChat($"{ChatColors.Green}{player.PlayerName}{ChatColors.Default} is now coaching {ChatColors.Green}{matchZyCoachTeam.teamName}{ChatColors.Default}!");
+        ReplyToUserCommand(player, $"You are now coaching {fragstackCoachTeam.teamName}! Use .uncoach to stop coaching");
+        PrintToAllChat($"{ChatColors.Green}{player.PlayerName}{ChatColors.Default} is now coaching {ChatColors.Green}{fragstackCoachTeam.teamName}{ChatColors.Default}!");
     }
 
     public void HandleCoaches()
@@ -97,7 +97,7 @@ public partial class MatchZy
         foreach (CCSPlayerController coach in coaches)
         {
             if (!IsPlayerValid(coach)) continue;
-            Team coachTeam = matchzyTeam1.coach.Contains(coach) ? matchzyTeam1 : matchzyTeam2;
+            Team coachTeam = fragstackTeam1.coach.Contains(coach) ? fragstackTeam1 : fragstackTeam2;
             int coachTeamNum = teamSides[coachTeam] == "CT" ? 3 : 2;
             coach.InGameMoneyServices!.Account = 0;
 
@@ -212,24 +212,24 @@ public partial class MatchZy
 
     public CsTeam GetCoachTeam(CCSPlayerController coach)
     {
-        if (matchzyTeam1.coach.Contains(coach))
+        if (fragstackTeam1.coach.Contains(coach))
         {
-            if (teamSides[matchzyTeam1] == "CT")
+            if (teamSides[fragstackTeam1] == "CT")
             {
                 return CsTeam.CounterTerrorist;
             }
-            else if (teamSides[matchzyTeam1] == "TERRORIST")
+            else if (teamSides[fragstackTeam1] == "TERRORIST")
             {
                 return CsTeam.Terrorist;
             }
         }
-        if (matchzyTeam2.coach.Contains(coach))
+        if (fragstackTeam2.coach.Contains(coach))
         {
-            if (teamSides[matchzyTeam2] == "CT")
+            if (teamSides[fragstackTeam2] == "CT")
             {
                 return CsTeam.CounterTerrorist;
             }
-            else if (teamSides[matchzyTeam2] == "TERRORIST")
+            else if (teamSides[fragstackTeam2] == "TERRORIST")
             {
                 return CsTeam.Terrorist;
             }

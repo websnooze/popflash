@@ -1,54 +1,54 @@
 using System.Text.RegularExpressions;
 
-namespace MatchZy
+namespace Fragstack
 {
     // Pure helpers for validating untrusted input and keeping secrets out of logs.
     // This file must not depend on CounterStrikeSharp so that it can be unit tested on its own (see tests/).
-    public static class MatchZySecurity
+    public static class FragstackSecurity
     {
-        // MatchZy / Get5 console commands that only change a setting and are therefore allowed in a match config's "cvars" block.
+        // Fragstack / Get5 console commands that only change a setting and are therefore allowed in a match config's "cvars" block.
         // Commands that perform an action (loading a match or backup, adding players, ending the match, ...) are deliberately not listed.
-        // Settings registered as FakeConVar are allowed automatically (see MatchZy.GetMatchZyFakeConVarNames).
+        // Settings registered as FakeConVar are allowed automatically (see Fragstack.GetFragstackFakeConVarNames).
         public static readonly HashSet<string> MatchConfigSettingCommands = new(StringComparer.OrdinalIgnoreCase)
         {
-            "matchzy_admin_chat_prefix", "matchzy_chat_prefix", "matchzy_chat_messages_timer_delay",
-            "matchzy_allow_force_ready", "get5_allow_force_ready",
-            "matchzy_autostart_mode",
-            "matchzy_demo_name_format", "matchzy_demo_path", "matchzy_demo_recording_enabled",
-            "matchzy_demo_upload_url", "matchzy_demo_upload_header_key", "matchzy_demo_upload_header_value",
+            "fragstack_admin_chat_prefix", "fragstack_chat_prefix", "fragstack_chat_messages_timer_delay",
+            "fragstack_allow_force_ready", "get5_allow_force_ready",
+            "fragstack_autostart_mode",
+            "fragstack_demo_name_format", "fragstack_demo_path", "fragstack_demo_recording_enabled",
+            "fragstack_demo_upload_url", "fragstack_demo_upload_header_key", "fragstack_demo_upload_header_value",
             "get5_demo_upload_url", "get5_demo_upload_header_key", "get5_demo_upload_header_value",
-            "matchzy_remote_backup_url", "matchzy_remote_backup_header_key", "matchzy_remote_backup_header_value",
+            "fragstack_remote_backup_url", "fragstack_remote_backup_header_key", "fragstack_remote_backup_header_value",
             "get5_remote_backup_url", "get5_remote_backup_header_key", "get5_remote_backup_header_value",
-            "matchzy_remote_log_url", "matchzy_remote_log_header_key", "matchzy_remote_log_header_value",
+            "fragstack_remote_log_url", "fragstack_remote_log_header_key", "fragstack_remote_log_header_value",
             "get5_remote_log_url", "get5_remote_log_header_key", "get5_remote_log_header_value",
-            "matchzy_kick_when_no_match_loaded", "matchzy_whitelist_enabled_default",
-            "matchzy_knife_enabled_default", "matchzy_playout_enabled_default",
-            "matchzy_max_saved_last_grenades", "matchzy_save_nades_as_global_enabled",
-            "matchzy_minimum_ready_required",
-            "matchzy_pause_after_restore", "matchzy_use_pause_command_for_tactical_pause",
-            "matchzy_reset_cvars_on_series_end", "matchzy_stop_command_available",
-            "matchzy_time_to_start", "get5_time_to_start", "matchzy_time_to_start_veto", "get5_time_to_start_veto",
-            "matchzy_ready_mode", "matchzy_join_start_delay",
-            "matchzy_max_tech_pauses", "get5_max_tech_pauses", "matchzy_tech_pause_time", "get5_tech_pause_time", "get5_allow_technical_pause",
+            "fragstack_kick_when_no_match_loaded", "fragstack_whitelist_enabled_default",
+            "fragstack_knife_enabled_default", "fragstack_playout_enabled_default",
+            "fragstack_max_saved_last_grenades", "fragstack_save_nades_as_global_enabled",
+            "fragstack_minimum_ready_required",
+            "fragstack_pause_after_restore", "fragstack_use_pause_command_for_tactical_pause",
+            "fragstack_reset_cvars_on_series_end", "fragstack_stop_command_available",
+            "fragstack_time_to_start", "get5_time_to_start", "fragstack_time_to_start_veto", "get5_time_to_start_veto",
+            "fragstack_ready_mode", "fragstack_join_start_delay",
+            "fragstack_max_tech_pauses", "get5_max_tech_pauses", "fragstack_tech_pause_time", "get5_tech_pause_time", "get5_allow_technical_pause",
         };
 
-        // Never settable from a match config, even though they are real convars / MatchZy settings.
+        // Never settable from a match config, even though they are real convars / Fragstack settings.
         public static readonly HashSet<string> BlockedMatchCvars = new(StringComparer.OrdinalIgnoreCase)
         {
             "rcon_password",
-            "matchzy_everyone_is_admin",
+            "fragstack_everyone_is_admin",
         };
 
         // Settings whose value is used as a file path or file name.
         private static readonly HashSet<string> PathCvars = new(StringComparer.OrdinalIgnoreCase)
         {
-            "matchzy_demo_path", "matchzy_demo_name_format",
+            "fragstack_demo_path", "fragstack_demo_name_format",
         };
 
         private static readonly char[] UnsafeValueChars = { '"', ';', '\r', '\n' };
         private static readonly Regex CvarNameRegex = new(@"^[A-Za-z0-9_]+$", RegexOptions.Compiled);
 
-        // Match configs (and backups built from them) come from outside the server, so only real convars and MatchZy/Get5 settings
+        // Match configs (and backups built from them) come from outside the server, so only real convars and Fragstack/Get5 settings
         // with a plain value are allowed. Anything else (e.g. "quit", or a value containing a quote or ';') could run console commands.
         public static bool IsAllowedMatchCvar(string name, string value, Func<string, bool> isEngineConVar, ISet<string> pluginFakeConVars, out string reason)
         {
@@ -73,11 +73,11 @@ namespace MatchZy
                 reason = "value must be a relative path without '..'";
                 return false;
             }
-            bool isPluginName = name.StartsWith("matchzy_", StringComparison.OrdinalIgnoreCase) || name.StartsWith("get5_", StringComparison.OrdinalIgnoreCase);
+            bool isPluginName = name.StartsWith("fragstack_", StringComparison.OrdinalIgnoreCase) || name.StartsWith("get5_", StringComparison.OrdinalIgnoreCase);
             if (isPluginName)
             {
                 if (MatchConfigSettingCommands.Contains(name) || pluginFakeConVars.Contains(name)) return true;
-                reason = "not a MatchZy setting (action commands are not allowed)";
+                reason = "not a Fragstack setting (action commands are not allowed)";
                 return false;
             }
             if (!isEngineConVar(name))
@@ -134,7 +134,7 @@ namespace MatchZy
 
         private static readonly Regex AdminFlagRegex = new(@"^@[a-z0-9_]+/([a-z0-9_]+|\*)$", RegexOptions.Compiled);
 
-        // MatchZy admins.json values can list CSSharp flags, e.g. "@css/config @css/map" or "@css/config,@css/chat".
+        // Fragstack admins.json values can list CSSharp flags, e.g. "@css/config @css/map" or "@css/config,@css/chat".
         // Only tokens shaped like a flag (@domain/name) count; anything else (a name, a label like "@owner") is ignored.
         public static List<string> GetAdminFlags(string? role)
         {

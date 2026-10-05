@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 using Newtonsoft.Json.Linq;
 
 
-namespace MatchZy
+namespace Fragstack
 {
 
     public class MatchConfig
@@ -76,5 +76,21 @@ namespace MatchZy
 
         [JsonPropertyName("remote_log_header_value")]
         public string RemoteLogHeaderValue { get; set; } = "";
+
+        // Fragstack extensions (string UUIDs; numeric MatchId remains for Fragstack DB / Get5 panels).
+        [JsonPropertyName("fragstack_match_id")]
+        public string FragstackMatchId { get; set; } = "";
+
+        [JsonPropertyName("fragstack_lobby_id")]
+        public string FragstackLobbyId { get; set; } = "";
+
+        [JsonPropertyName("fragstack_tournament_match_id")]
+        public string FragstackTournamentMatchId { get; set; } = "";
+
+        [JsonPropertyName("fragstack_dathost_match_id")]
+        public string FragstackDathostMatchId { get; set; } = "";
+
+        [JsonPropertyName("fragstack_compat_events")]
+        public bool FragstackCompatEvents { get; set; } = true;
     }
 }

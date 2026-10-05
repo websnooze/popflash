@@ -15,14 +15,14 @@ using System.Reflection;
 using System.Globalization;
 
 
-namespace MatchZy
+namespace Fragstack
 {
-    public partial class MatchZy
+    public partial class Fragstack
     {
-        public const string warmupCfgPath = "MatchZy/warmup.cfg";
-        public const string knifeCfgPath = "MatchZy/knife.cfg";
-        public const string liveCfgPath = "MatchZy/live.cfg";
-        public const string liveWingmanCfgPath = "MatchZy/live_wingman.cfg";
+        public const string warmupCfgPath = "Fragstack/warmup.cfg";
+        public const string knifeCfgPath = "Fragstack/knife.cfg";
+        public const string liveCfgPath = "Fragstack/live.cfg";
+        public const string liveWingmanCfgPath = "Fragstack/live_wingman.cfg";
 
         private void PrintToAllChat(string message)
         {
@@ -55,7 +55,7 @@ namespace MatchZy
 
         private void LoadAdmins()
         {
-            string fileName = "MatchZy/admins.json";
+            string fileName = "Fragstack/admins.json";
             string filePath = Path.Join(Server.GameDirectory + "/csgo/cfg", fileName);
 
             if (File.Exists(filePath))
@@ -82,9 +82,9 @@ namespace MatchZy
                     foreach (var kvp in loadedAdmins)
                     {
                         Log($"[ADMIN] Username: {kvp.Key}, Role: {kvp.Value}");
-                        if (!string.IsNullOrWhiteSpace(kvp.Value) && MatchZySecurity.GetAdminFlags(kvp.Value).Count == 0 && kvp.Value.IndexOfAny(new[] { '@', '#', '/' }) >= 0)
+                        if (!string.IsNullOrWhiteSpace(kvp.Value) && FragstackSecurity.GetAdminFlags(kvp.Value).Count == 0 && kvp.Value.IndexOfAny(new[] { '@', '#', '/' }) >= 0)
                         {
-                            Log($"[ADMIN WARNING] {kvp.Key}: \"{kvp.Value}\" contains no valid flag (expected e.g. @css/config), so this admin has full MatchZy admin access.");
+                            Log($"[ADMIN WARNING] {kvp.Key}: \"{kvp.Value}\" contains no valid flag (expected e.g. @css/config), so this admin has full Fragstack admin access.");
                         }
                     }
                 }
@@ -129,7 +129,7 @@ namespace MatchZy
 
         private bool IsPlayerAdmin(CCSPlayerController? player, string command = "", params string[] permissions)
         {
-            if (everyoneIsAdmin.Value) return true; // Everyone is treated as admin if matchzy_everyone_is_admin is true.
+            if (everyoneIsAdmin.Value) return true; // Everyone is treated as admin if fragstack_everyone_is_admin is true.
             string[] updatedPermissions = permissions.Concat(new[] { "@css/root" }).ToArray();
             RequiresPermissionsOr attr = new(updatedPermissions)
             {
@@ -137,11 +137,11 @@ namespace MatchZy
             };
             if (attr.CanExecuteCommand(player)) return true; // Admin exists in admins.json of CSSharp
             if (player == null) return true; // Sent via server, hence should be treated as an admin.
-            if (loadedAdmins.TryGetValue(player.SteamID.ToString(), out string? role)) // Admin exists in admins.json of MatchZy
+            if (loadedAdmins.TryGetValue(player.SteamID.ToString(), out string? role)) // Admin exists in admins.json of Fragstack
             {
-                List<string> flags = MatchZySecurity.GetAdminFlags(role);
-                if (flags.Count == 0) return true; // No flags given (e.g. "" or a name): full MatchZy admin, as before.
-                return MatchZySecurity.AdminFlagsGrant(flags, updatedPermissions);
+                List<string> flags = FragstackSecurity.GetAdminFlags(role);
+                if (flags.Count == 0) return true; // No flags given (e.g. "" or a name): full Fragstack admin, as before.
+                return FragstackSecurity.AdminFlagsGrant(flags, updatedPermissions);
             }
             return false;
         }
@@ -160,9 +160,9 @@ namespace MatchZy
                 if (joinStartSecondsLeft != null) return;
                 int team1Side = GetTeamSideNumber("team1");
                 int team2Side = GetTeamSideNumber("team2");
-                PrintToAllChat(Localizer["matchzy.ready.waitingforplayers",
-                    matchzyTeam1.teamName, GetJoinedPlayerCount(team1Side), GetTeamMinReady(team1Side),
-                    matchzyTeam2.teamName, GetJoinedPlayerCount(team2Side), GetTeamMinReady(team2Side)]);
+                PrintToAllChat(Localizer["fragstack.ready.waitingforplayers",
+                    fragstackTeam1.teamName, GetJoinedPlayerCount(team1Side), GetTeamMinReady(team1Side),
+                    fragstackTeam2.teamName, GetJoinedPlayerCount(team2Side), GetTeamMinReady(team2Side)]);
                 return;
             }
             List<string> unreadyPlayers = new();
@@ -182,11 +182,11 @@ namespace MatchZy
                 // Server.PrintToChatAll($"{chatPrefix} Unready players: {unreadyPlayerList}. Please type .ready to ready up! {minimumReadyRequiredMessage}");
                 if (isRoundRestorePending)
                 {
-                    PrintToAllChat(Localizer["matchzy.ready.readytotestorebackupinfomessage", unreadyPlayerList, minimumReadyRequiredMessage]);
+                    PrintToAllChat(Localizer["fragstack.ready.readytotestorebackupinfomessage", unreadyPlayerList, minimumReadyRequiredMessage]);
                 }
                 else
                 {
-                    PrintToAllChat(Localizer["matchzy.utility.unreadyplayers", unreadyPlayerList, minimumReadyRequiredMessage]);
+                    PrintToAllChat(Localizer["fragstack.utility.unreadyplayers", unreadyPlayerList, minimumReadyRequiredMessage]);
                 }
             }
             else
@@ -195,12 +195,12 @@ namespace MatchZy
                 if (isMatchSetup)
                 {
                     // Server.PrintToChatAll($"{chatPrefix} Current ready players: {ChatColors.Green}{countOfReadyPlayers}{ChatColors.Default}");
-                    PrintToAllChat(Localizer["matchzy.utility.readyplayers", countOfReadyPlayers]);
+                    PrintToAllChat(Localizer["fragstack.utility.readyplayers", countOfReadyPlayers]);
                 }
                 else
                 {
                     // Server.PrintToChatAll($"{chatPrefix} Minimum ready players required {ChatColors.Green}{minimumReadyRequired}{ChatColors.Default}, current ready players: {ChatColors.Green}{countOfReadyPlayers}{ChatColors.Default}");
-                    PrintToAllChat(Localizer["matchzy.utility.minimumreadyplayers", minimumReadyRequired, countOfReadyPlayers]);
+                    PrintToAllChat(Localizer["fragstack.utility.minimumreadyplayers", minimumReadyRequired, countOfReadyPlayers]);
                 }
             }
         }
@@ -212,23 +212,23 @@ namespace MatchZy
                 var pauseTeamName = unpauseData["pauseTeam"];
                 if ((string)pauseTeamName == "Admin")
                 {
-                    PrintToAllChat(Localizer["matchzy.pause.adminpausedthematch"]);
+                    PrintToAllChat(Localizer["fragstack.pause.adminpausedthematch"]);
                 }
                 else if ((string)pauseTeamName == "RoundRestore" && !(bool)unpauseData["t"] && !(bool)unpauseData["ct"])
                 {
-                    PrintToAllChat(Localizer["matchzy.pause.pausedbecauserestore"]);
+                    PrintToAllChat(Localizer["fragstack.pause.pausedbecauserestore"]);
                 }
                 else if ((bool)unpauseData["t"] && !(bool)unpauseData["ct"])
                 {
-                    PrintToAllChat(Localizer["matchzy.pause.teamwantstounpause", reverseTeamSides["TERRORIST"].teamName, reverseTeamSides["CT"].teamName]);
+                    PrintToAllChat(Localizer["fragstack.pause.teamwantstounpause", reverseTeamSides["TERRORIST"].teamName, reverseTeamSides["CT"].teamName]);
                 }
                 else if (!(bool)unpauseData["t"] && (bool)unpauseData["ct"])
                 {
-                    PrintToAllChat(Localizer["matchzy.pause.teamwantstounpause", reverseTeamSides["CT"].teamName, reverseTeamSides["TERRORIST"].teamName]);
+                    PrintToAllChat(Localizer["fragstack.pause.teamwantstounpause", reverseTeamSides["CT"].teamName, reverseTeamSides["TERRORIST"].teamName]);
                 }
                 else if (!(bool)unpauseData["t"] && !(bool)unpauseData["ct"])
                 {
-                    PrintToAllChat(Localizer["matchzy.pause.pausedthematch", pauseTeamName]);
+                    PrintToAllChat(Localizer["fragstack.pause.pausedthematch", pauseTeamName]);
                 }
             }
         }
@@ -340,7 +340,7 @@ namespace MatchZy
         private void SendSideSelectionMessage()
         {
             if (!isSideSelectionPhase) return;
-            PrintToAllChat(Localizer["matchzy.knife.sidedecisionpending", knifeWinnerName]);
+            PrintToAllChat(Localizer["fragstack.knife.sidedecisionpending", knifeWinnerName]);
             // Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}{knifeWinnerName}{ChatColors.Default} Won the knife. Waiting for them to type {ChatColors.Green}.stay{ChatColors.Default} or {ChatColors.Green}.switch{ChatColors.Default}");
         }
 
@@ -350,7 +350,7 @@ namespace MatchZy
             ExecWarmupCfg();
             knifeWinnerName = knifeWinner == 3 ? reverseTeamSides["CT"].teamName : reverseTeamSides["TERRORIST"].teamName;
             ShowDamageInfo();
-            PrintToAllChat(Localizer["matchzy.knife.sidedecisionpending", knifeWinnerName]);
+            PrintToAllChat(Localizer["fragstack.knife.sidedecisionpending", knifeWinnerName]);
             // Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}{knifeWinnerName}{ChatColors.Default} Won the knife. Waiting for them to type {ChatColors.Green}.stay{ChatColors.Default} or {ChatColors.Green}.switch{ChatColors.Default}");
             sideSelectionMessageTimer ??= AddTimer(chatTimerDelay, SendSideSelectionMessage, TimerFlags.REPEAT);
         }
@@ -386,8 +386,8 @@ namespace MatchZy
             StartDemoRecordingAfterRestart(liveRestartDelay);
 
             // Storing 0-0 score backup file as lastBackupFileName, so that .stop functions properly in first round.
-            lastBackupFileName = $"matchzy_{liveMatchId}_{matchConfig.CurrentMapNumber}_round00.txt";
-            lastMatchZyBackupFileName = $"matchzy_{liveMatchId}_{matchConfig.CurrentMapNumber}_round00.json";
+            lastBackupFileName = $"fragstack_{liveMatchId}_{matchConfig.CurrentMapNumber}_round00.txt";
+            lastFragstackBackupFileName = $"fragstack_{liveMatchId}_{matchConfig.CurrentMapNumber}_round00.json";
 
             // This is to reload the map once it is over so that all flags are reset accordingly
             Server.ExecuteCommand("mp_match_end_restart true");
@@ -471,7 +471,7 @@ namespace MatchZy
                 isPreVeto = false;
 
                 lastBackupFileName = "";
-                lastMatchZyBackupFileName = "";
+                lastFragstackBackupFileName = "";
 
                 isRoundRestorePending = false;
                 playerHasTakenDamage = false;
@@ -511,11 +511,11 @@ namespace MatchZy
                 nadeSpecificLastGrenadeData = new();
                 UnpauseMatch();
 
-                matchzyTeam1.teamName = "COUNTER-TERRORISTS";
-                matchzyTeam2.teamName = "TERRORISTS";
+                fragstackTeam1.teamName = "COUNTER-TERRORISTS";
+                fragstackTeam2.teamName = "TERRORISTS";
 
-                matchzyTeam1.teamPlayers = null;
-                matchzyTeam2.teamPlayers = null;
+                fragstackTeam1.teamPlayers = null;
+                fragstackTeam2.teamPlayers = null;
 
                 HashSet<CCSPlayerController> coaches = GetAllCoaches();
 
@@ -526,21 +526,21 @@ namespace MatchZy
                     SetPlayerVisible(coach);
                 }
 
-                matchzyTeam1.coach = new();
-                matchzyTeam2.coach = new();
+                fragstackTeam1.coach = new();
+                fragstackTeam2.coach = new();
                 coachKillTimer?.Kill();
                 coachKillTimer = null;
 
-                matchzyTeam1.seriesScore = 0;
-                matchzyTeam2.seriesScore = 0;
+                fragstackTeam1.seriesScore = 0;
+                fragstackTeam2.seriesScore = 0;
 
-                Server.ExecuteCommand($"mp_teamname_1 \"{matchzyTeam1.teamName}\"");
-                Server.ExecuteCommand($"mp_teamname_2 \"{matchzyTeam2.teamName}\"");
+                Server.ExecuteCommand($"mp_teamname_1 \"{fragstackTeam1.teamName}\"");
+                Server.ExecuteCommand($"mp_teamname_2 \"{fragstackTeam2.teamName}\"");
 
-                teamSides[matchzyTeam1] = "CT";
-                teamSides[matchzyTeam2] = "TERRORIST";
-                reverseTeamSides["CT"] = matchzyTeam1;
-                reverseTeamSides["TERRORIST"] = matchzyTeam2;
+                teamSides[fragstackTeam1] = "CT";
+                teamSides[fragstackTeam2] = "TERRORIST";
+                reverseTeamSides["CT"] = fragstackTeam1;
+                reverseTeamSides["TERRORIST"] = fragstackTeam2;
 
                 // Back to the server's remote log settings (config.cfg), dropping any set by the match config.
                 matchConfig = new();
@@ -695,7 +695,7 @@ namespace MatchZy
             if (matchStarted)
             {
                 // ReplyToUserCommand(player, $"Map cannot be changed once the match is started!");
-                ReplyToUserCommand(player, Localizer["matchzy.utility.matchstarted"]);
+                ReplyToUserCommand(player, Localizer["fragstack.utility.matchstarted"]);
                 return;
             }
 
@@ -735,24 +735,24 @@ namespace MatchZy
                     minimumReadyRequired = readyRequired;
                     string minimumReadyRequiredFormatted = (player == null) ? $"{minimumReadyRequired}" : $"{ChatColors.Green}{minimumReadyRequired}{ChatColors.Default}";
                     // ReplyToUserCommand(player, $"Minimum ready players required to start the match are now set to: {minimumReadyRequiredFormatted}");
-                    ReplyToUserCommand(player, Localizer["matchzy.utility.minreadyplayers", minimumReadyRequiredFormatted]);
+                    ReplyToUserCommand(player, Localizer["fragstack.utility.minreadyplayers", minimumReadyRequiredFormatted]);
                     CheckLiveRequired();
                 }
                 else
                 {
                     // ReplyToUserCommand(player, $"Invalid value for readyrequired. Please specify a valid non-negative number. Usage: !readyrequired <number_of_ready_players_required>");
-                    ReplyToUserCommand(player, Localizer["matchzy.utility.rrinvalidvalue"]);
+                    ReplyToUserCommand(player, Localizer["fragstack.utility.rrinvalidvalue"]);
                 }
             }
             else
             {
                 string minimumReadyRequiredFormatted = (player == null) ? $"{minimumReadyRequired}" : $"{ChatColors.Green}{minimumReadyRequired}{ChatColors.Default}";
                 // ReplyToUserCommand(player, $"Current Ready Required: {minimumReadyRequiredFormatted} .Usage: !readyrequired <number_of_ready_players_required>");
-                ReplyToUserCommand(player, Localizer["matchzy.utility.currentreadyrequired", minimumReadyRequiredFormatted]);
+                ReplyToUserCommand(player, Localizer["fragstack.utility.currentreadyrequired", minimumReadyRequiredFormatted]);
             }
         }
 
-        // fromJoinCountdown: in join mode (matchzy_ready_mode 1) only the start countdown starts the match, so that .forceready
+        // fromJoinCountdown: in join mode (fragstack_ready_mode 1) only the start countdown starts the match, so that .forceready
         // or other ready changes cannot skip it.
         private void CheckLiveRequired(bool fromJoinCountdown = false)
         {
@@ -799,42 +799,42 @@ namespace MatchZy
                 if (restoreStarted) return;
             }
             // If default names, we pick a player and use their name as their team name
-            if (matchzyTeam1.teamName == "COUNTER-TERRORISTS")
+            if (fragstackTeam1.teamName == "COUNTER-TERRORISTS")
             {
-                // matchzyTeam1.teamName = teamName;
-                teamSides[matchzyTeam1] = "CT";
-                reverseTeamSides["CT"] = matchzyTeam1;
+                // fragstackTeam1.teamName = teamName;
+                teamSides[fragstackTeam1] = "CT";
+                reverseTeamSides["CT"] = fragstackTeam1;
                 foreach (var key in playerData.Keys)
                 {
                     if (playerData[key].TeamNum == 3)
                     {
-                        matchzyTeam1.teamName = "team_" + RemoveSpecialCharacters(playerData[key].PlayerName.Replace(" ", "_"));
-                        foreach (var coach in matchzyTeam1.coach) {
-                            coach.Clan = $"[{matchzyTeam1.teamName} COACH]";
+                        fragstackTeam1.teamName = "team_" + RemoveSpecialCharacters(playerData[key].PlayerName.Replace(" ", "_"));
+                        foreach (var coach in fragstackTeam1.coach) {
+                            coach.Clan = $"[{fragstackTeam1.teamName} COACH]";
                         }
                         break;
                     }
                 }
-                // Server.ExecuteCommand($"mp_teamname_1 \"{matchzyTeam1.teamName}\"");
+                // Server.ExecuteCommand($"mp_teamname_1 \"{fragstackTeam1.teamName}\"");
             }
 
-            if (matchzyTeam2.teamName == "TERRORISTS")
+            if (fragstackTeam2.teamName == "TERRORISTS")
             {
-                // matchzyTeam2.teamName = teamName;
-                teamSides[matchzyTeam2] = "TERRORIST";
-                reverseTeamSides["TERRORIST"] = matchzyTeam2;
+                // fragstackTeam2.teamName = teamName;
+                teamSides[fragstackTeam2] = "TERRORIST";
+                reverseTeamSides["TERRORIST"] = fragstackTeam2;
                 foreach (var key in playerData.Keys)
                 {
                     if (playerData[key].TeamNum == 2)
                     {
-                        matchzyTeam2.teamName = "team_" + RemoveSpecialCharacters(playerData[key].PlayerName.Replace(" ", "_"));
-                        foreach (var coach in matchzyTeam2.coach) {
-                            coach.Clan = $"[{matchzyTeam2.teamName} COACH]";
+                        fragstackTeam2.teamName = "team_" + RemoveSpecialCharacters(playerData[key].PlayerName.Replace(" ", "_"));
+                        foreach (var coach in fragstackTeam2.coach) {
+                            coach.Clan = $"[{fragstackTeam2.teamName} COACH]";
                         }
                         break;
                     }
                 }
-                // Server.ExecuteCommand($"mp_teamname_2 \"{matchzyTeam2.teamName}\"");
+                // Server.ExecuteCommand($"mp_teamname_2 \"{fragstackTeam2.teamName}\"");
             }
 
             Server.ExecuteCommand($"mp_teamname_1 \"{reverseTeamSides["CT"].teamName}\"");
@@ -843,7 +843,7 @@ namespace MatchZy
             HandleClanTags();
 
             string seriesType = "BO" + matchConfig.NumMaps.ToString();
-            liveMatchId = database.InitMatch(matchzyTeam1.teamName, matchzyTeam2.teamName, "-", isMatchSetup, liveMatchId, matchConfig.CurrentMapNumber, seriesType, matchConfig);
+            liveMatchId = database.InitMatch(fragstackTeam1.teamName, fragstackTeam2.teamName, "-", isMatchSetup, liveMatchId, matchConfig.CurrentMapNumber, seriesType, matchConfig);
             SetupRoundBackupFile();
 
             GetSpawns();
@@ -862,7 +862,7 @@ namespace MatchZy
             }
             if (showCreditsOnMatchStart.Value)
             {
-                Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}MatchZy{ChatColors.Default} Plugin by {ChatColors.Green}WD-{ChatColors.Default}");
+                Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}Fragstack{ChatColors.Default} Plugin by {ChatColors.Green}WD-{ChatColors.Default}");
             }
             if (matchStartMessage.Value.Trim() != "" && matchStartMessage.Value.Trim() != "\"\"")
             {
@@ -942,7 +942,7 @@ namespace MatchZy
             StopDemoRecording(tvFlushDelay - 0.5f, activeDemoFile, liveMatchId, currentMapNumber);
 
             (int t1score, int t2score) = GetTeamsScore();
-            Team? mapWinner = t1score > t2score ? matchzyTeam1 : t2score > t1score ? matchzyTeam2 : null;
+            Team? mapWinner = t1score > t2score ? fragstackTeam1 : t2score > t1score ? fragstackTeam2 : null;
             if (mapWinner != null) mapWinner.seriesScore++;
             PublishMapEnd(mapWinner, mapWinner?.teamName ?? "Draw", t1score, t2score);
 
@@ -958,27 +958,27 @@ namespace MatchZy
             // Count maps played rather than maps won, so that a drawn map is counted too.
             int mapsPlayed = currentMapNumber + 1;
             SeriesOutcome outcome = SeriesLogic.GetOutcomeAfterMap(matchConfig.NumMaps, matchConfig.Maplist.Count, mapsPlayed,
-                matchzyTeam1.seriesScore, matchzyTeam2.seriesScore, matchConfig.SeriesCanClinch);
-            Log($"[HandleMatchEnd] MATCH ENDED, outcome: {outcome}, mapsPlayed: {mapsPlayed}, NumMaps: {matchConfig.NumMaps}, Team1SeriesScore: {matchzyTeam1.seriesScore}, Team2SeriesScore: {matchzyTeam2.seriesScore}");
+                fragstackTeam1.seriesScore, fragstackTeam2.seriesScore, matchConfig.SeriesCanClinch);
+            Log($"[HandleMatchEnd] MATCH ENDED, outcome: {outcome}, mapsPlayed: {mapsPlayed}, NumMaps: {matchConfig.NumMaps}, Team1SeriesScore: {fragstackTeam1.seriesScore}, Team2SeriesScore: {fragstackTeam2.seriesScore}");
             if (outcome != SeriesOutcome.Continue)
             {
                 // A tie ends the series without a winner.
                 EndSeries(GetSeriesLeader(), restartDelay - 1, t1score, t2score);
                 return;
             }
-            if (matchzyTeam1.seriesScore > matchzyTeam2.seriesScore)
+            if (fragstackTeam1.seriesScore > fragstackTeam2.seriesScore)
             {
-                Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}{matchzyTeam1.teamName}{ChatColors.Default} is winning the series {ChatColors.Green}{matchzyTeam1.seriesScore}-{matchzyTeam2.seriesScore}{ChatColors.Default}");
+                Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}{fragstackTeam1.teamName}{ChatColors.Default} is winning the series {ChatColors.Green}{fragstackTeam1.seriesScore}-{fragstackTeam2.seriesScore}{ChatColors.Default}");
 
             }
-            else if (matchzyTeam2.seriesScore > matchzyTeam1.seriesScore)
+            else if (fragstackTeam2.seriesScore > fragstackTeam1.seriesScore)
             {
-                Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}{matchzyTeam2.teamName}{ChatColors.Default} is winning the series {ChatColors.Green}{matchzyTeam2.seriesScore}-{matchzyTeam1.seriesScore}{ChatColors.Default}");
+                Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}{fragstackTeam2.teamName}{ChatColors.Default} is winning the series {ChatColors.Green}{fragstackTeam2.seriesScore}-{fragstackTeam1.seriesScore}{ChatColors.Default}");
 
             }
             else
             {
-                Server.PrintToChatAll($"{chatPrefix} The series is tied at {ChatColors.Green}{matchzyTeam1.seriesScore}-{matchzyTeam2.seriesScore}{ChatColors.Default}");
+                Server.PrintToChatAll($"{chatPrefix} The series is tied at {ChatColors.Green}{fragstackTeam1.seriesScore}-{fragstackTeam2.seriesScore}{ChatColors.Default}");
             }
             matchConfig.CurrentMapNumber += 1;
             string nextMap = matchConfig.Maplist[matchConfig.CurrentMapNumber];
@@ -1034,7 +1034,7 @@ namespace MatchZy
         {
             if (winner == null) return new Winner("0", "none");
             string side = teamSides.TryGetValue(winner, out string? teamSide) && teamSide == "CT" ? "3" : "2";
-            return new Winner(side, winner == matchzyTeam1 ? "team1" : "team2");
+            return new Winner(side, winner == fragstackTeam1 ? "team1" : "team2");
         }
 
         // eventWinner is the side that won the round (EventRoundEnd.Winner: 2 = T, 3 = CT).
@@ -1047,13 +1047,13 @@ namespace MatchZy
                 _ => null,
             };
             if (winner == null) return new Winner(eventWinner.ToString(), "none");
-            return new Winner(eventWinner.ToString(), winner == matchzyTeam1 ? "team1" : "team2");
+            return new Winner(eventWinner.ToString(), winner == fragstackTeam1 ? "team1" : "team2");
         }
 
         private Team? GetSeriesLeader()
         {
-            if (matchzyTeam1.seriesScore > matchzyTeam2.seriesScore) return matchzyTeam1;
-            if (matchzyTeam2.seriesScore > matchzyTeam1.seriesScore) return matchzyTeam2;
+            if (fragstackTeam1.seriesScore > fragstackTeam2.seriesScore) return fragstackTeam1;
+            if (fragstackTeam2.seriesScore > fragstackTeam1.seriesScore) return fragstackTeam2;
             return null;
         }
 
@@ -1063,9 +1063,9 @@ namespace MatchZy
         {
             long matchId = liveMatchId;
             int mapNumber = matchConfig.CurrentMapNumber;
-            int team1SeriesScore = matchzyTeam1.seriesScore;
-            int team2SeriesScore = matchzyTeam2.seriesScore;
-            string statsPath = Server.GameDirectory + "/csgo/MatchZy_Stats/" + matchId.ToString();
+            int team1SeriesScore = fragstackTeam1.seriesScore;
+            int team2SeriesScore = fragstackTeam2.seriesScore;
+            string statsPath = Server.GameDirectory + "/csgo/Fragstack_Stats/" + matchId.ToString();
             RemoteLogTarget target = CurrentRemoteLogTarget();
 
             var mapResultEvent = new MapResultEvent
@@ -1073,8 +1073,8 @@ namespace MatchZy
                 MatchId = matchId,
                 MapNumber = mapNumber,
                 Winner = GetTeamWinner(winner),
-                StatsTeam1 = new MatchZyStatsTeam(matchzyTeam1.id, matchzyTeam1.teamName, team1SeriesScore, t1score, 0, 0, new List<StatsPlayer>()),
-                StatsTeam2 = new MatchZyStatsTeam(matchzyTeam2.id, matchzyTeam2.teamName, team2SeriesScore, t2score, 0, 0, new List<StatsPlayer>())
+                StatsTeam1 = new FragstackStatsTeam(fragstackTeam1.id, fragstackTeam1.teamName, team1SeriesScore, t1score, 0, 0, new List<StatsPlayer>()),
+                StatsTeam2 = new FragstackStatsTeam(fragstackTeam2.id, fragstackTeam2.teamName, team2SeriesScore, t2score, 0, 0, new List<StatsPlayer>())
             };
 
             Task.Run(async () => await SendEventAsync(mapResultEvent, target));
@@ -1090,11 +1090,11 @@ namespace MatchZy
             int t2score = 0;
             foreach (var team in teamEntities)
             {
-                if (team.Teamname == teamSides[matchzyTeam1])
+                if (team.Teamname == teamSides[fragstackTeam1])
                 {
                     t1score = team.Score;
                 }
-                else if (team.Teamname == teamSides[matchzyTeam2])
+                else if (team.Teamname == teamSides[fragstackTeam2])
                 {
                     t2score = team.Score;
                 }
@@ -1115,7 +1115,7 @@ namespace MatchZy
             if (!matchStarted) return;
             playerHasTakenDamage = false;
             HandleCoaches();
-            CreateMatchZyRoundDataBackup();
+            CreateFragstackRoundDataBackup();
             InitPlayerDamageInfo();
             UpdateHostname();
         }
@@ -1129,7 +1129,7 @@ namespace MatchZy
                     coachKillTimer?.Kill();
                     coachKillTimer = null;
                     (int t1score, int t2score) = GetTeamsScore();
-                    Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}{matchzyTeam1.teamName} [{t1score} - {t2score}] {matchzyTeam2.teamName}");
+                    Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}{fragstackTeam1.teamName} [{t1score} - {t2score}] {fragstackTeam2.teamName}");
 
                     ShowDamageInfo();
 
@@ -1137,11 +1137,11 @@ namespace MatchZy
 
                     int currentMapNumber = matchConfig.CurrentMapNumber;
                     long matchId = liveMatchId;
-                    int ctTeamNum = reverseTeamSides["CT"] == matchzyTeam1 ? 1 : 2;
-                    int tTeamNum = reverseTeamSides["TERRORIST"] == matchzyTeam1 ? 1 : 2;
+                    int ctTeamNum = reverseTeamSides["CT"] == fragstackTeam1 ? 1 : 2;
+                    int tTeamNum = reverseTeamSides["TERRORIST"] == fragstackTeam1 ? 1 : 2;
                     Winner winner = GetRoundWinner(@event.Winner);
 
-                    var roundEndEvent = new MatchZyRoundEndedEvent
+                    var roundEndEvent = new FragstackRoundEndedEvent
                     {
                         MatchId = liveMatchId,
                         MapNumber = matchConfig.CurrentMapNumber,
@@ -1151,8 +1151,8 @@ namespace MatchZy
                         Reason = @event.Reason,
                         RoundTime = GetRoundTime(),
                         Winner = winner,
-                        StatsTeam1 = new MatchZyStatsTeam(matchzyTeam1.id, matchzyTeam1.teamName, 0, t1score, 0, 0, playerStatsListTeam1),
-                        StatsTeam2 = new MatchZyStatsTeam(matchzyTeam2.id, matchzyTeam2.teamName, 0, t2score, 0, 0, playerStatsListTeam2),
+                        StatsTeam1 = new FragstackStatsTeam(fragstackTeam1.id, fragstackTeam1.teamName, 0, t1score, 0, 0, playerStatsListTeam1),
+                        StatsTeam2 = new FragstackStatsTeam(fragstackTeam2.id, fragstackTeam2.teamName, 0, t2score, 0, 0, playerStatsListTeam2),
                     };
 
                     Task.Run(async () => await SendEventAsync(roundEndEvent));
@@ -1161,9 +1161,9 @@ namespace MatchZy
                     database.UpdateMapStatsAsync(matchId, currentMapNumber, t1score, t2score);
 
                     string round = GetRoundNumer().ToString("D2");
-                    lastBackupFileName = $"matchzy_{liveMatchId}_{matchConfig.CurrentMapNumber}_round{round}.txt";
-                    lastMatchZyBackupFileName = $"matchzy_{liveMatchId}_{matchConfig.CurrentMapNumber}_round{round}.json";
-                    Log($"[HandlePostRoundEndEvent] Setting lastBackupFileName to {lastBackupFileName} and lastMatchZyBackupFileName to {lastMatchZyBackupFileName}");
+                    lastBackupFileName = $"fragstack_{liveMatchId}_{matchConfig.CurrentMapNumber}_round{round}.txt";
+                    lastFragstackBackupFileName = $"fragstack_{liveMatchId}_{matchConfig.CurrentMapNumber}_round{round}.json";
+                    Log($"[HandlePostRoundEndEvent] Setting lastBackupFileName to {lastBackupFileName} and lastFragstackBackupFileName to {lastFragstackBackupFileName}");
 
                     // One of the team did not use .stop command hence display the proper message after the round has ended.
                     if (stopData["ct"] && !stopData["t"])
@@ -1232,30 +1232,30 @@ namespace MatchZy
             if (isMatchLive && isPaused)
             {
                 // ReplyToUserCommand(player, "Match is already paused!");
-                ReplyToUserCommand(player, Localizer["matchzy.utility.paused"]);
+                ReplyToUserCommand(player, Localizer["fragstack.utility.paused"]);
                 return;
             }
             if (IsHalfTimePhase())
             {
                 // ReplyToUserCommand(player, "You cannot use this command during halftime.");
-                ReplyToUserCommand(player, Localizer["matchzy.utility.duringhalftime"]);
+                ReplyToUserCommand(player, Localizer["fragstack.utility.duringhalftime"]);
                 return;
             }
             if (IsPostGamePhase())
             {
                 // ReplyToUserCommand(player, "You cannot use this command after the game has ended.");
-                ReplyToUserCommand(player, Localizer["matchzy.utility.matchended"]);
+                ReplyToUserCommand(player, Localizer["fragstack.utility.matchended"]);
                 return;
             }
             if (IsTacticalTimeoutActive())
             {
                 // ReplyToUserCommand(player, "You cannot use this command when tactical timeout is active.");
-                ReplyToUserCommand(player, Localizer["matchzy.utility.tacticaltimeout"]);
+                ReplyToUserCommand(player, Localizer["fragstack.utility.tacticaltimeout"]);
                 return;
             }
             if (!techPauseEnabled.Value && player != null)
             {
-                PrintToPlayerChat(player, Localizer["matchzy.pause.techpausenotenabled"]);
+                PrintToPlayerChat(player, Localizer["fragstack.pause.techpausenotenabled"]);
                 return;
             }
             if(!string.IsNullOrEmpty(techPausePermission.Value) && techPausePermission.Value != "\"\"")
@@ -1282,10 +1282,10 @@ namespace MatchZy
                 {
                     return;
                 }
-                int teamNumber = pausingTeam == matchzyTeam1 ? 1 : 2;
+                int teamNumber = pausingTeam == fragstackTeam1 ? 1 : 2;
                 if (!PauseLogic.CanCallTechPause(techPausesUsed[teamNumber], maxTechPauses))
                 {
-                    PrintToAllChat(Localizer["matchzy.pause.notechpauseleft", pausingTeam.teamName]);
+                    PrintToAllChat(Localizer["fragstack.pause.notechpauseleft", pausingTeam.teamName]);
                     return;
                 }
                 string pauseTeamName = pausingTeam.teamName;
@@ -1293,11 +1293,11 @@ namespace MatchZy
                 if (maxTechPauses > 0)
                 {
                     // With a limit, say which of the team's technical pauses this is.
-                    PrintToAllChat(Localizer["matchzy.pause.techpausecalled", pauseTeamName, techPausesUsed[teamNumber] + 1, maxTechPauses]);
+                    PrintToAllChat(Localizer["fragstack.pause.techpausecalled", pauseTeamName, techPausesUsed[teamNumber] + 1, maxTechPauses]);
                 }
                 else
                 {
-                    PrintToAllChat(Localizer["matchzy.pause.pausedthematch", pauseTeamName]);
+                    PrintToAllChat(Localizer["fragstack.pause.pausedthematch", pauseTeamName]);
                 }
                 // Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}{pauseTeamName}{ChatColors.Default} has paused the match. Type .unpause to unpause the match");
 
@@ -1317,33 +1317,33 @@ namespace MatchZy
             if (isMatchLive && isPaused)
             {
                 // ReplyToUserCommand(player, "Match is already paused!");
-                ReplyToUserCommand(player, Localizer["matchzy.utility.paused"]);
+                ReplyToUserCommand(player, Localizer["fragstack.utility.paused"]);
                 return;
             }
             if (IsHalfTimePhase())
             {
                 // ReplyToUserCommand(player, "You cannot use this command during halftime.");
-                ReplyToUserCommand(player, Localizer["matchzy.utility.duringhalftime"]);
+                ReplyToUserCommand(player, Localizer["fragstack.utility.duringhalftime"]);
                 return;
             }
             if (IsPostGamePhase())
             {
                 // ReplyToUserCommand(player, "You cannot use this command after the game has ended.");
-                ReplyToUserCommand(player, Localizer["matchzy.utility.matchended"]);
+                ReplyToUserCommand(player, Localizer["fragstack.utility.matchended"]);
                 return;
             }
             if (IsTacticalTimeoutActive())
             {
                 // ReplyToUserCommand(player, "You cannot use this command when tactical timeout is active.");
-                ReplyToUserCommand(player, Localizer["matchzy.utility.tacticaltimeout"]);
+                ReplyToUserCommand(player, Localizer["fragstack.utility.tacticaltimeout"]);
                 return;
             }
             unpauseData["pauseTeam"] = "Admin";
-            PrintToAllChat(Localizer["matchzy.pause.adminpausedthematch"]);
+            PrintToAllChat(Localizer["fragstack.pause.adminpausedthematch"]);
             // Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}Admin{ChatColors.Default} has paused the match.");
             if (player == null)
             {
-                Server.PrintToConsole($"[MatchZy] {Localizer["matchzy.pause.adminpausedthematch"]}");
+                Server.PrintToConsole($"[Fragstack] {Localizer["fragstack.pause.adminpausedthematch"]}");
             }
             SetMatchPausedFlags();
             StartPauseTracking(PauseType.Admin, 0);
@@ -1358,12 +1358,12 @@ namespace MatchZy
                     SendPlayerNotAdminMessage(player);
                     return;
                 }
-                PrintToAllChat(Localizer["matchzy.pause.adminunpausedthematch"]);
+                PrintToAllChat(Localizer["fragstack.pause.adminunpausedthematch"]);
                 UnpauseMatch();
 
                 if (player == null)
                 {
-                    Server.PrintToConsole("[MatchZy] Admin has unpaused the match, resuming the match!");
+                    Server.PrintToConsole("[Fragstack] Admin has unpaused the match, resuming the match!");
                 }
             }
         }
@@ -1446,7 +1446,7 @@ namespace MatchZy
         private void SendPlayerNotAdminMessage(CCSPlayerController? player)
         {
             // ReplyToUserCommand(player, "You do not have permission to use this command!");
-            ReplyToUserCommand(player, Localizer["matchzy.utility.dontpermission"]);
+            ReplyToUserCommand(player, Localizer["fragstack.utility.dontpermission"]);
         }
 
         private string GetColorTreatedString(string message)
@@ -1508,7 +1508,7 @@ namespace MatchZy
         public void LoadClientNames()
         {
             string namesFileName = "Match_" + liveMatchId.ToString() + ".ini";
-            string namesFilePath = Server.GameDirectory + "/csgo/MatchZyPlayerNames/" + namesFileName;
+            string namesFilePath = Server.GameDirectory + "/csgo/FragstackPlayerNames/" + namesFileName;
             string? directoryPath = Path.GetDirectoryName(namesFilePath);
             if (directoryPath != null)
             {
@@ -1522,13 +1522,13 @@ namespace MatchZy
             sb.AppendLine("\"Names\"");
             sb.AppendLine("{");
 
-            WriteClientNamesInFile(sb, matchzyTeam1.teamPlayers);
-            WriteClientNamesInFile(sb, matchzyTeam2.teamPlayers);
+            WriteClientNamesInFile(sb, fragstackTeam1.teamPlayers);
+            WriteClientNamesInFile(sb, fragstackTeam2.teamPlayers);
             WriteClientNamesInFile(sb, matchConfig.Spectators);
 
             sb.AppendLine("}");
             File.WriteAllText(namesFilePath, sb.ToString());
-            Server.ExecuteCommand($"sv_load_forced_client_names_file MatchZyPlayerNames/" + namesFileName);
+            Server.ExecuteCommand($"sv_load_forced_client_names_file FragstackPlayerNames/" + namesFileName);
         }
 
         public void WriteClientNamesInFile(StringBuilder sb, JToken? players)
@@ -1614,17 +1614,17 @@ namespace MatchZy
             }
         }
 
-        private HashSet<string>? matchZyFakeConVarNames;
+        private HashSet<string>? fragstackFakeConVarNames;
 
-        // Names of every FakeConVar setting this plugin registers (e.g. matchzy_enable_damage_report).
-        private HashSet<string> GetMatchZyFakeConVarNames()
+        // Names of every FakeConVar setting this plugin registers (e.g. fragstack_enable_damage_report).
+        private HashSet<string> GetFragstackFakeConVarNames()
         {
-            return matchZyFakeConVarNames ??= new HashSet<string>(GetFakeConVarsByName().Keys, StringComparer.OrdinalIgnoreCase);
+            return fragstackFakeConVarNames ??= new HashSet<string>(GetFakeConVarsByName().Keys, StringComparer.OrdinalIgnoreCase);
         }
 
         public bool IsAllowedMatchCvar(string name, string value, out string reason)
         {
-            return MatchZySecurity.IsAllowedMatchCvar(name, value, cvarName => ConVar.Find(cvarName) != null, GetMatchZyFakeConVarNames(), out reason);
+            return FragstackSecurity.IsAllowedMatchCvar(name, value, cvarName => ConVar.Find(cvarName) != null, GetFragstackFakeConVarNames(), out reason);
         }
 
         public void ExecuteChangedConvars()
@@ -1644,7 +1644,7 @@ namespace MatchZy
                     ApplyMatchRemoteLogCvar(key, value);
                     continue;
                 }
-                Log($"[ExecuteChangedConvars] Execing: {key} \"{(MatchZySecurity.IsSecretCvar(key) ? "<redacted>" : value)}\"");
+                Log($"[ExecuteChangedConvars] Execing: {key} \"{(FragstackSecurity.IsSecretCvar(key) ? "<redacted>" : value)}\"");
                 Server.ExecuteCommand($"{key} \"{value}\"");
             }
         }
@@ -1661,12 +1661,12 @@ namespace MatchZy
                     continue;
                 }
                 string value = matchConfig.OriginalCvars[key];
-                string loggedValue = MatchZySecurity.IsSecretCvar(key) ? "<redacted>" : value;
+                string loggedValue = FragstackSecurity.IsSecretCvar(key) ? "<redacted>" : value;
                 if (GetPluginSettings().TryGetValue(key, out var pluginSetting))
                 {
-                    // MatchZy setting: written back directly (their commands cannot set some values, e.g. an empty URL).
+                    // Fragstack setting: written back directly (their commands cannot set some values, e.g. an empty URL).
                     // The value can come from a backup file, so it is checked like a value from a match config.
-                    if (!MatchZySecurity.IsQuotableValue(value) || (pluginSetting.IsValid != null && !pluginSetting.IsValid(value)))
+                    if (!FragstackSecurity.IsQuotableValue(value) || (pluginSetting.IsValid != null && !pluginSetting.IsValid(value)))
                     {
                         Log($"[ResetChangedConvars] Ignoring {key}: invalid value");
                         continue;
@@ -1675,7 +1675,7 @@ namespace MatchZy
                     pluginSetting.Set(value);
                     continue;
                 }
-                if (MatchZySecurity.IsQuotableValue(value))
+                if (FragstackSecurity.IsQuotableValue(value))
                 {
                     Log($"[ResetChangedConvars] Execing: {key} \"{loggedValue}\"");
                     Server.ExecuteCommand($"{key} \"{value}\"");
@@ -1699,8 +1699,8 @@ namespace MatchZy
                 .Replace("{MATCH_ID}", $"{liveMatchId}")
                 .Replace("{MAP}", Server.MapName)
                 .Replace("{MAPNUMBER}", matchConfig.CurrentMapNumber.ToString())
-                .Replace("{TEAM1}", matchzyTeam1.teamName.Replace(" ", "_"))
-                .Replace("{TEAM2}", matchzyTeam2.teamName.Replace(" ", "_"))
+                .Replace("{TEAM1}", fragstackTeam1.teamName.Replace(" ", "_"))
+                .Replace("{TEAM2}", fragstackTeam2.teamName.Replace(" ", "_"))
                 .Replace("{TEAM1_SCORE}", team1Score.ToString())
                 .Replace("{TEAM2_SCORE}", team2Score.ToString());
             return formattedValue;
@@ -1874,8 +1874,8 @@ namespace MatchZy
                         Stats = playerStatsInstance
                     };
 
-                    int ctTeamNum = reverseTeamSides["CT"] == matchzyTeam1 ? 1 : 2;
-                    int tTeamNum = reverseTeamSides["TERRORIST"] == matchzyTeam1 ? 1 : 2;
+                    int ctTeamNum = reverseTeamSides["CT"] == fragstackTeam1 ? 1 : 2;
+                    int tTeamNum = reverseTeamSides["TERRORIST"] == fragstackTeam1 ? 1 : 2;
 
                     if (player.TeamNum == 3)
                     {
@@ -1905,7 +1905,7 @@ namespace MatchZy
 
         private void Log(string message)
         {
-            Console.WriteLine("[MatchZy] " + message);
+            Console.WriteLine("[Fragstack] " + message);
         }
 
         private void AutoStart()
@@ -2017,7 +2017,7 @@ namespace MatchZy
         {
             if (filePath == null || fileUploadURL == "")
             {
-                Log($"[UploadFileAsync] Not able to upload the file, either filePath or fileUploadURL is not set. filePath: {filePath} fileUploadURL: {MatchZySecurity.RedactUrl(fileUploadURL)}");
+                Log($"[UploadFileAsync] Not able to upload the file, either filePath or fileUploadURL is not set. filePath: {filePath} fileUploadURL: {FragstackSecurity.RedactUrl(fileUploadURL)}");
                 return;
             }
 
@@ -2025,7 +2025,7 @@ namespace MatchZy
             {
                 // Demos can be large and uploads slow: the default 100s timeout was too short.
                 using var httpClient = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
-                Log($"[UploadFileAsync] Going to upload the file on {MatchZySecurity.RedactUrl(fileUploadURL)}. Complete path: {filePath}");
+                Log($"[UploadFileAsync] Going to upload the file on {FragstackSecurity.RedactUrl(fileUploadURL)}. Complete path: {filePath}");
 
                 if (!File.Exists(filePath))
                 {
@@ -2038,10 +2038,10 @@ namespace MatchZy
                 using StreamContent content = new(fileStream);
                 content.Headers.Add("Content-Type", "application/octet-stream");
 
-                content.Headers.Add("MatchZy-FileName", Path.GetFileName(filePath));
-                content.Headers.Add("MatchZy-MatchId", matchId.ToString());
-                content.Headers.Add("MatchZy-MapNumber", mapNumber.ToString());
-                content.Headers.Add("MatchZy-RoundNumber", roundNumber.ToString());
+                content.Headers.Add("Fragstack-FileName", Path.GetFileName(filePath));
+                content.Headers.Add("Fragstack-MatchId", matchId.ToString());
+                content.Headers.Add("Fragstack-MapNumber", mapNumber.ToString());
+                content.Headers.Add("Fragstack-RoundNumber", roundNumber.ToString());
 
                 // For Get5 Panel
                 content.Headers.Add("Get5-FileName", Path.GetFileName(filePath));
@@ -2074,7 +2074,7 @@ namespace MatchZy
 
         public bool HandlePlayerWhitelist(CCSPlayerController player, string steamId)
         {
-            string whitelistfileName = "MatchZy/whitelist.cfg";
+            string whitelistfileName = "Fragstack/whitelist.cfg";
             string whitelistPath = Path.Join(Server.GameDirectory + "/csgo/cfg", whitelistfileName);
             string? directoryPath = Path.GetDirectoryName(whitelistPath);
             if (directoryPath != null)

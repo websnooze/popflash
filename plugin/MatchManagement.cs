@@ -8,10 +8,10 @@ using CounterStrikeSharp.API.Modules.Utils;
 using Newtonsoft.Json.Linq;
 
 
-namespace MatchZy
+namespace Fragstack
 {
 
-    public partial class MatchZy
+    public partial class Fragstack
     {
         public MatchConfig matchConfig = new();
 
@@ -23,10 +23,10 @@ namespace MatchZy
 
         public string loadedConfigFile = "";
 
-        public Team matchzyTeam1 = new() {
+        public Team fragstackTeam1 = new() {
             teamName = "COUNTER-TERRORISTS"
         };
-        public Team matchzyTeam2 = new() {
+        public Team fragstackTeam2 = new() {
             teamName = "TERRORISTS"
         };
 
@@ -43,7 +43,7 @@ namespace MatchZy
             HandleTeamNameChangeCommand(player, command.ArgString, 2);
         }
 
-        [ConsoleCommand("matchzy_loadmatch", "Loads a match from the given JSON file path (relative to the csgo/ directory)")]
+        [ConsoleCommand("fragstack_loadmatch", "Loads a match from the given JSON file path (relative to the csgo/ directory)")]
         public void LoadMatch(CCSPlayerController? player, CommandInfo command)
         {
             try
@@ -52,7 +52,7 @@ namespace MatchZy
                 if (isMatchSetup)
                 {
                     // command.ReplyToCommand($"[LoadMatch] A match is already setup with id: {liveMatchId}, cannot load a new match!");
-                    ReplyToUserCommand(player, Localizer["matchzy.mm.matchisalreadysetup", liveMatchId]);
+                    ReplyToUserCommand(player, Localizer["fragstack.mm.matchisalreadysetup", liveMatchId]);
                     Log($"[LoadMatch] A match is already setup with id: {liveMatchId}, cannot load a new match!");
                     return;
                 }
@@ -60,9 +60,9 @@ namespace MatchZy
                 string filePath = Path.Join(Server.GameDirectory + "/csgo", fileName);
                 if (!File.Exists(filePath)) 
                 {
-                    // command.ReplyToCommand($"[LoadMatch] Provided file does not exist! Usage: matchzy_loadmatch <filename>");
-                    ReplyToUserCommand(player, Localizer["matchzy.mm.filedoesntexist"]);
-                    Log($"[LoadMatch] Provided file does not exist! Usage: matchzy_loadmatch <filename>");
+                    // command.ReplyToCommand($"[LoadMatch] Provided file does not exist! Usage: fragstack_loadmatch <filename>");
+                    ReplyToUserCommand(player, Localizer["fragstack.mm.filedoesntexist"]);
+                    Log($"[LoadMatch] Provided file does not exist! Usage: fragstack_loadmatch <filename>");
                     return;
                 }
                 string jsonData = File.ReadAllText(filePath);
@@ -70,7 +70,7 @@ namespace MatchZy
                 if (!success)
                 {
                     // command.ReplyToCommand("Match load failed! Resetting current match");
-                    ReplyToUserCommand(player, Localizer["matchzy.mm.matchloadfailed"]);
+                    ReplyToUserCommand(player, Localizer["fragstack.mm.matchloadfailed"]);
                     ResetMatch();
                 }
                 loadedConfigFile = fileName;
@@ -83,14 +83,14 @@ namespace MatchZy
         }
 
         [ConsoleCommand("get5_loadmatch_url", "Loads a match from the given URL")]
-        [ConsoleCommand("matchzy_loadmatch_url", "Loads a match from the given URL")]
+        [ConsoleCommand("fragstack_loadmatch_url", "Loads a match from the given URL")]
         public void LoadMatchFromURL(CCSPlayerController? player, CommandInfo command)
         {
             if (player != null) return;
             if (isMatchSetup)
             {
                 // command.ReplyToCommand($"[LoadMatchDataCommand] A match is already setup with id: {liveMatchId}, cannot load a new match!");
-                ReplyToUserCommand(player, Localizer["matchzy.mm.get5matchisalreadysetup", liveMatchId]);
+                ReplyToUserCommand(player, Localizer["fragstack.mm.get5matchisalreadysetup", liveMatchId]);
                 Log($"[LoadMatchDataCommand] A match is already setup with id: {liveMatchId}, cannot load a new match!");
                 return;
             }
@@ -99,13 +99,13 @@ namespace MatchZy
             string headerName = command.ArgCount > 3 ? command.ArgByIndex(2) : "";
             string headerValue = command.ArgCount > 3 ? command.ArgByIndex(3) : "";
 
-            Log($"[LoadMatchDataCommand] Match setup request received with URL: {MatchZySecurity.RedactUrl(url)} headerName: {headerName} and headerValue: {MatchZySecurity.RedactSecret(headerValue)}");
+            Log($"[LoadMatchDataCommand] Match setup request received with URL: {FragstackSecurity.RedactUrl(url)} headerName: {headerName} and headerValue: {FragstackSecurity.RedactSecret(headerValue)}");
 
             if (!IsValidUrl(url))
             {
                 // command.ReplyToCommand($"[LoadMatchDataCommand] Invalid URL: {url}. Please provide a valid URL to load the match!");
-                ReplyToUserCommand(player, Localizer["matchzy.mm.invalidurl", MatchZySecurity.RedactUrl(url)]);
-                Log($"[LoadMatchDataCommand] Invalid URL: {MatchZySecurity.RedactUrl(url)}. Please provide a valid URL to load the match!");
+                ReplyToUserCommand(player, Localizer["fragstack.mm.invalidurl", FragstackSecurity.RedactUrl(url)]);
+                Log($"[LoadMatchDataCommand] Invalid URL: {FragstackSecurity.RedactUrl(url)}. Please provide a valid URL to load the match!");
                 return;
             }
             try
@@ -126,7 +126,7 @@ namespace MatchZy
                     if (!success)
                     {
                         // command.ReplyToCommand("Match load failed! Resetting current match");
-                        ReplyToUserCommand(player, Localizer["matchzy.mm.matchloadfailed"]);
+                        ReplyToUserCommand(player, Localizer["fragstack.mm.matchloadfailed"]);
                         ResetMatch();
                     }
                     loadedConfigFile = url;
@@ -134,7 +134,7 @@ namespace MatchZy
                 else
                 {
                     // command.ReplyToCommand($"[LoadMatchFromURL] HTTP request failed with status code: {response.StatusCode}");
-                    ReplyToUserCommand(player, Localizer["matchzy.mm.httprequestfailed", response.StatusCode]);
+                    ReplyToUserCommand(player, Localizer["fragstack.mm.httprequestfailed", response.StatusCode]);
                     Log($"[LoadMatchFromURL] HTTP request failed with status code: {response.StatusCode}");
                 }
             }
@@ -165,10 +165,9 @@ namespace MatchZy
                 switch (field)
                 {
                     case "matchid":
-                        // The MySQL tables store matchid as INT.
-                        if (!long.TryParse(jsonData[field]!.ToString(), out long matchIdValue) || matchIdValue < 0 || matchIdValue > int.MaxValue)
+                        if (!FragstackSettings.TryParseMatchId(jsonData[field], out _, out _))
                         {
-                            return $"{field} should be an integer between 0 and {int.MaxValue}!";
+                            return $"{field} should be an integer (0..{int.MaxValue}) or a Fragstack UUID/string id!";
                         }
                         break;
 
@@ -194,6 +193,8 @@ namespace MatchZy
                         break;
                     
                     case "cvars":
+                    case "fragstack":
+                    case "settings":
                         if (jsonData[field]!.Type != JTokenType.Object)
                         {
                             return $"{field} should be a JSON structure!";
@@ -300,19 +301,25 @@ namespace MatchZy
 
             if(jsonDataObject["matchid"] != null)
             {
-                liveMatchId = (long)jsonDataObject["matchid"]!;
+                if (!FragstackSettings.TryParseMatchId(jsonDataObject["matchid"], out long parsedId, out string? stringId))
+                {
+                    Log("[LoadMatchFromJSON] Invalid matchid");
+                    return false;
+                }
+                liveMatchId = parsedId;
+                matchConfig.FragstackMatchId = stringId ?? "";
             }
             JToken team1 = jsonDataObject["team1"]!;
             JToken team2 = jsonDataObject["team2"]!;
             JToken maplist = jsonDataObject["maplist"]!;
 
-            if (team1["id"] != null) matchzyTeam1.id = team1["id"]!.ToString();
-            if (team2["id"] != null) matchzyTeam2.id = team2["id"]!.ToString();
+            if (team1["id"] != null) fragstackTeam1.id = team1["id"]!.ToString();
+            if (team2["id"] != null) fragstackTeam2.id = team2["id"]!.ToString();
 
-            matchzyTeam1.teamName = RemoveSpecialCharacters(team1["name"]!.ToString());
-            matchzyTeam2.teamName = RemoveSpecialCharacters(team2["name"]!.ToString());
-            matchzyTeam1.teamPlayers = MatchConfigJson.NormalizeRoster(team1["players"]);
-            matchzyTeam2.teamPlayers = MatchConfigJson.NormalizeRoster(team2["players"]);
+            fragstackTeam1.teamName = RemoveSpecialCharacters(team1["name"]!.ToString());
+            fragstackTeam2.teamName = RemoveSpecialCharacters(team2["name"]!.ToString());
+            fragstackTeam1.teamPlayers = MatchConfigJson.NormalizeRoster(team1["players"]);
+            fragstackTeam2.teamPlayers = MatchConfigJson.NormalizeRoster(team2["players"]);
 
             // The previous match's veto must not decide who starts or picks sides in this one.
             lastVetoTeam = CsTeam.None;
@@ -332,11 +339,13 @@ namespace MatchZy
                 MinPlayersToReady = minimumReadyRequired,
                 // Like Get5, a map pool larger than num_maps is vetoed unless "skip_veto": true is set.
                 SkipVeto = false,
+                FragstackMatchId = matchConfig.FragstackMatchId,
             };
             // Start from the server's remote log settings (config.cfg); the match config's cvars can override them for this match.
             ApplyDefaultRemoteLogSettings();
 
             GetOptionalMatchValues(jsonDataObject);
+            ApplyFragstackExtensions(jsonDataObject);
 
             if (matchConfig.MapsPool.Count == matchConfig.NumMaps)
             {
@@ -424,12 +433,12 @@ namespace MatchZy
             // CheckTeamsPostMatchConfigLoad).
             if (!mapChangesOnLoad) PlacePlayersOnMatchTeams();
 
-            var seriesStartedEvent = new MatchZySeriesStartedEvent
+            var seriesStartedEvent = new FragstackSeriesStartedEvent
             {
                 MatchId = liveMatchId,
                 NumberOfMaps = matchConfig.NumMaps,
-                Team1 = new(matchzyTeam1.id, matchzyTeam1.teamName),
-                Team2 = new(matchzyTeam2.id, matchzyTeam2.teamName),
+                Team1 = new(fragstackTeam1.id, fragstackTeam1.teamName),
+                Team2 = new(fragstackTeam2.id, fragstackTeam2.teamName),
             };
 
             Task.Run(async () => {
@@ -463,7 +472,7 @@ namespace MatchZy
             }
             try
             {
-                // Paused outside MatchZy (e.g. mp_pause_match from the console).
+                // Paused outside Fragstack (e.g. mp_pause_match from the console).
                 if (GetGameRules().GamePaused) Server.ExecuteCommand("mp_unpause_match;");
             }
             catch (Exception e)
@@ -488,27 +497,27 @@ namespace MatchZy
             int mapNumber = matchConfig.CurrentMapNumber;
             if (matchConfig.MapSides[mapNumber] == "team1_ct" || matchConfig.MapSides[mapNumber] == "team2_t")
             {
-                teamSides[matchzyTeam1] = "CT";
-                teamSides[matchzyTeam2] = "TERRORIST";
-                reverseTeamSides["CT"] = matchzyTeam1;
-                reverseTeamSides["TERRORIST"] = matchzyTeam2;
+                teamSides[fragstackTeam1] = "CT";
+                teamSides[fragstackTeam2] = "TERRORIST";
+                reverseTeamSides["CT"] = fragstackTeam1;
+                reverseTeamSides["TERRORIST"] = fragstackTeam2;
                 isKnifeRequired = false;
             }
             else if (matchConfig.MapSides[mapNumber] == "team2_ct" || matchConfig.MapSides[mapNumber] == "team1_t")
             {
-                teamSides[matchzyTeam2] = "CT";
-                teamSides[matchzyTeam1] = "TERRORIST";
-                reverseTeamSides["CT"] = matchzyTeam2;
-                reverseTeamSides["TERRORIST"] = matchzyTeam1;
+                teamSides[fragstackTeam2] = "CT";
+                teamSides[fragstackTeam1] = "TERRORIST";
+                reverseTeamSides["CT"] = fragstackTeam2;
+                reverseTeamSides["TERRORIST"] = fragstackTeam1;
                 isKnifeRequired = false;
             }
             else if (matchConfig.MapSides[mapNumber] == "knife")
             {
                 // Start the knife round from a known state instead of the sides left over from the previous map or match.
-                teamSides[matchzyTeam1] = "CT";
-                teamSides[matchzyTeam2] = "TERRORIST";
-                reverseTeamSides["CT"] = matchzyTeam1;
-                reverseTeamSides["TERRORIST"] = matchzyTeam2;
+                teamSides[fragstackTeam1] = "CT";
+                teamSides[fragstackTeam2] = "TERRORIST";
+                reverseTeamSides["CT"] = fragstackTeam1;
+                reverseTeamSides["TERRORIST"] = fragstackTeam2;
                 isKnifeRequired = true;
             }
 
@@ -539,7 +548,7 @@ namespace MatchZy
                     }
 
                     matchConfig.ChangedCvars[cvarName] = cvarValue;
-                    // Remember the value from before the match (convars, and also MatchZy settings) to restore at series end.
+                    // Remember the value from before the match (convars, and also Fragstack settings) to restore at series end.
                     if (!matchConfig.OriginalCvars.ContainsKey(cvarName))
                     {
                         string? originalValue = GetCurrentSettingValue(cvarName);
@@ -600,6 +609,51 @@ namespace MatchZy
             
         }
 
+        /// <summary>
+        /// Applies Fragstack `fragstack` / `settings` blocks: metadata, side_type, and cvars (without overriding explicit cvars).
+        /// </summary>
+        public void ApplyFragstackExtensions(JObject jsonDataObject)
+        {
+            FragstackSettings.ApplyToMatchConfig(
+                jsonDataObject,
+                out string? sideType,
+                out Dictionary<string, string> fragstackCvars,
+                out FragstackMeta meta);
+
+            if (!string.IsNullOrWhiteSpace(meta.MatchId))
+                matchConfig.FragstackMatchId = meta.MatchId!;
+            if (!string.IsNullOrWhiteSpace(meta.LobbyId))
+                matchConfig.FragstackLobbyId = meta.LobbyId!;
+            if (!string.IsNullOrWhiteSpace(meta.TournamentMatchId))
+                matchConfig.FragstackTournamentMatchId = meta.TournamentMatchId!;
+            if (!string.IsNullOrWhiteSpace(meta.DathostMatchId))
+                matchConfig.FragstackDathostMatchId = meta.DathostMatchId!;
+
+            // Explicit side_type in JSON wins over settings.knifeRound.
+            if (jsonDataObject["side_type"] == null && !string.IsNullOrEmpty(sideType))
+            {
+                matchConfig.MatchSideType = sideType;
+            }
+
+            if (jsonDataObject["cvars"] == null)
+            {
+                jsonDataObject["cvars"] = new JObject();
+            }
+
+            var cvarsObj = (JObject)jsonDataObject["cvars"]!;
+            foreach (var pair in fragstackCvars)
+            {
+                if (cvarsObj[pair.Key] == null)
+                    cvarsObj[pair.Key] = pair.Value;
+            }
+
+            if (jsonDataObject["fragstack"] != null || jsonDataObject["settings"] != null)
+            {
+                matchConfig.FragstackCompatEvents = true;
+                Log($"[ApplyFragstackExtensions] Fragstack match={matchConfig.FragstackMatchId} lobby={matchConfig.FragstackLobbyId} tournament_match={matchConfig.FragstackTournamentMatchId} side_type={matchConfig.MatchSideType} cvars={fragstackCvars.Count}");
+            }
+        }
+
         public void HandleTeamNameChangeCommand(CCSPlayerController? player, string teamName, int teamNum) {
             if (!IsPlayerAdmin(player, "css_team", "@css/config")) {
                 SendPlayerNotAdminMessage(player);
@@ -607,31 +661,31 @@ namespace MatchZy
             }
             if (matchStarted) {
                 // ReplyToUserCommand(player, "Team names cannot be changed once the match is started!");
-                ReplyToUserCommand(player, Localizer["matchzy.mm.teamcannotbechanged"]);
+                ReplyToUserCommand(player, Localizer["fragstack.mm.teamcannotbechanged"]);
                 return;
             }
             teamName = RemoveSpecialCharacters(teamName.Trim());
             if (teamName == "") {
                 // ReplyToUserCommand(player, $"Usage: !team{teamNum} <name>");
-                ReplyToUserCommand(player, Localizer["matchzy.cc.usage", $"!team{teamNum} <name>"]);
+                ReplyToUserCommand(player, Localizer["fragstack.cc.usage", $"!team{teamNum} <name>"]);
                 return;
             }
 
             if (teamNum == 1) {
-                matchzyTeam1.teamName = teamName;
-                teamSides[matchzyTeam1] = "CT";
-                reverseTeamSides["CT"] = matchzyTeam1;
-                foreach (var coach in matchzyTeam1.coach)
+                fragstackTeam1.teamName = teamName;
+                teamSides[fragstackTeam1] = "CT";
+                reverseTeamSides["CT"] = fragstackTeam1;
+                foreach (var coach in fragstackTeam1.coach)
                 {
-                    coach.Clan = $"[{matchzyTeam1.teamName} COACH]";
+                    coach.Clan = $"[{fragstackTeam1.teamName} COACH]";
                 }
             } else if (teamNum == 2) {
-                matchzyTeam2.teamName = teamName;
-                teamSides[matchzyTeam2] = "TERRORIST";
-                reverseTeamSides["TERRORIST"] = matchzyTeam2;
-                foreach (var coach in matchzyTeam2.coach)
+                fragstackTeam2.teamName = teamName;
+                teamSides[fragstackTeam2] = "TERRORIST";
+                reverseTeamSides["TERRORIST"] = fragstackTeam2;
+                foreach (var coach in fragstackTeam2.coach)
                 {
-                    coach.Clan = $"[{matchzyTeam2.teamName} COACH]";
+                    coach.Clan = $"[{fragstackTeam2.teamName} COACH]";
                 }
             }
             Server.ExecuteCommand($"mp_teamname_{teamNum} \"{teamName}\";");
@@ -639,11 +693,11 @@ namespace MatchZy
 
         public void SwapSidesInTeamData(bool swapTeams) {
             // if (swapTeams) {
-            //     // Here, we sync matchzyTeam1 and matchzyTeam2 with the actual team1 and team2
-            //     (matchzyTeam2, matchzyTeam1) = (matchzyTeam1, matchzyTeam2);
+            //     // Here, we sync fragstackTeam1 and fragstackTeam2 with the actual team1 and team2
+            //     (fragstackTeam2, fragstackTeam1) = (fragstackTeam1, fragstackTeam2);
             // }
 
-            (teamSides[matchzyTeam1], teamSides[matchzyTeam2]) = (teamSides[matchzyTeam2], teamSides[matchzyTeam1]);
+            (teamSides[fragstackTeam1], teamSides[fragstackTeam2]) = (teamSides[fragstackTeam2], teamSides[fragstackTeam1]);
             (reverseTeamSides["CT"], reverseTeamSides["TERRORIST"]) = (reverseTeamSides["TERRORIST"], reverseTeamSides["CT"]);
         }
 
@@ -653,25 +707,25 @@ namespace MatchZy
             var steamId = player.SteamID;
             try
             {
-                if (matchzyTeam1.teamPlayers != null && matchzyTeam1.teamPlayers[steamId.ToString()] != null)
+                if (fragstackTeam1.teamPlayers != null && fragstackTeam1.teamPlayers[steamId.ToString()] != null)
                 {
-                    if (teamSides[matchzyTeam1] == "CT")
+                    if (teamSides[fragstackTeam1] == "CT")
                     {
                         playerTeam = CsTeam.CounterTerrorist;
                     }
-                    else if (teamSides[matchzyTeam1] == "TERRORIST")
+                    else if (teamSides[fragstackTeam1] == "TERRORIST")
                     {
                         playerTeam = CsTeam.Terrorist;
                     }
 
                 }
-                else if (matchzyTeam2.teamPlayers != null && matchzyTeam2.teamPlayers[steamId.ToString()] != null)
+                else if (fragstackTeam2.teamPlayers != null && fragstackTeam2.teamPlayers[steamId.ToString()] != null)
                 {
-                    if (teamSides[matchzyTeam2] == "CT")
+                    if (teamSides[fragstackTeam2] == "CT")
                     {
                         playerTeam = CsTeam.CounterTerrorist;
                     }
-                    else if (teamSides[matchzyTeam2] == "TERRORIST")
+                    else if (teamSides[fragstackTeam2] == "TERRORIST")
                     {
                         playerTeam = CsTeam.Terrorist;
                     }
@@ -697,7 +751,7 @@ namespace MatchZy
         {
             seriesEnded = true;
             long matchId = liveMatchId;
-            (int team1Score, int team2Score) = (matchzyTeam1.seriesScore, matchzyTeam2.seriesScore);
+            (int team1Score, int team2Score) = (fragstackTeam1.seriesScore, fragstackTeam2.seriesScore);
             string? winnerName = winner?.teamName;
             if (cancelled)
             {
@@ -705,14 +759,14 @@ namespace MatchZy
             }
             else if (winner == null)
             {
-                PrintToAllChat($"{ChatColors.Green}{matchzyTeam1.teamName}{ChatColors.Default} and {ChatColors.Green}{matchzyTeam2.teamName}{ChatColors.Default} have tied the match");
+                PrintToAllChat($"{ChatColors.Green}{fragstackTeam1.teamName}{ChatColors.Default} and {ChatColors.Green}{fragstackTeam2.teamName}{ChatColors.Default} have tied the match");
             }
             else
             {
                 Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}{winnerName}{ChatColors.Default} has won the match");
             }
 
-            var seriesResultEvent = new MatchZySeriesResultEvent()
+            var seriesResultEvent = new FragstackSeriesResultEvent()
             {
                 MatchId = matchId,
                 Winner = GetTeamWinner(winner),
@@ -764,7 +818,7 @@ namespace MatchZy
                 // A forfeit awards the series: the winner's series score is raised to the maps needed to win (e.g. 1-0 in a
                 // BO1, 2-x in a BO3). Get5 keeps the score as it is, but panels that judge the result by the score (G5V
                 // shows 0:0 as a tie) would then not show the win; G5API's own forfeit also writes a winning score.
-                Team loser = forcedWinner == matchzyTeam1 ? matchzyTeam2 : matchzyTeam1;
+                Team loser = forcedWinner == fragstackTeam1 ? fragstackTeam2 : fragstackTeam1;
                 forcedWinner.seriesScore = SeriesLogic.ForfeitWinnerSeriesScore(matchConfig.NumMaps, forcedWinner.seriesScore, loser.seriesScore);
             }
 

@@ -1,7 +1,7 @@
 using System.Globalization;
-using MatchZy;
+using Fragstack;
 
-namespace MatchZy.Tests;
+namespace Fragstack.Tests;
 
 public class LineupFormatTests
 {
