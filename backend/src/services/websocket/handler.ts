@@ -1,6 +1,7 @@
 import type { ServerWebSocket } from 'bun'
 import { env } from '../../config/env'
-import { AppError } from '../../lib/errors'
+import { AppError, BadRequestError } from '../../lib/errors'
+import { rateLimit, RedisKeys, touchLobbyPresence } from '../../lib/redis'
 import { authService } from '../auth.service'
 import { lobbyService } from '../lobby.service'
 import { wsHub } from './hub'
@@ -23,6 +24,13 @@ function send(ws: ServerWebSocket<WsSessionData>, payload: unknown): void {
   }
 }
 
+async function refreshPresence(ws: ServerWebSocket<WsSessionData>): Promise<void> {
+  if (!ws.data.userId) return
+  for (const lobbyId of ws.data.subscribedLobbyIds) {
+    await touchLobbyPresence(lobbyId, ws.data.userId)
+  }
+}
+
 export const websocketHandlers = {
   async open(ws: ServerWebSocket<WsSessionData>) {
     wsHub.add(ws)
@@ -37,6 +45,7 @@ export const websocketHandlers = {
 
     switch (parsed.type) {
       case 'ping':
+        await refreshPresence(ws)
         send(ws, { type: 'pong' })
         break
 
@@ -46,6 +55,7 @@ export const websocketHandlers = {
           return
         }
         wsHub.subscribe(ws, parsed.lobbyId)
+        await refreshPresence(ws)
         send(ws, { type: 'subscribed', lobbyId: parsed.lobbyId })
         try {
           const lobby = await lobbyService.getLobbyView(parsed.lobbyId)
@@ -65,11 +75,37 @@ export const websocketHandlers = {
         break
       }
 
+      case 'subscribe_tournament': {
+        if (!parsed.tournamentId) {
+          send(ws, { type: 'error', message: 'tournamentId is required' })
+          return
+        }
+        wsHub.subscribeTournament(ws, parsed.tournamentId)
+        send(ws, { type: 'subscribed_tournament', tournamentId: parsed.tournamentId })
+        break
+      }
+
+      case 'unsubscribe_tournament': {
+        if (!parsed.tournamentId) {
+          send(ws, { type: 'error', message: 'tournamentId is required' })
+          return
+        }
+        wsHub.unsubscribeTournament(ws, parsed.tournamentId)
+        break
+      }
+
       case 'lobby_action': {
         if (!ws.data.userId) {
           send(ws, { type: 'error', message: 'Authentication required' })
           return
         }
+
+        const actionRl = await rateLimit(RedisKeys.rateLimitWsAction(ws.data.userId), 40, 10)
+        if (!actionRl.allowed) {
+          send(ws, { type: 'error', message: 'Too many actions — slow down' })
+          return
+        }
+
         if (!parsed.lobbyId || !parsed.action) {
           send(ws, { type: 'error', message: 'lobbyId and action are required' })
           return

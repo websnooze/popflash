@@ -7,6 +7,7 @@ import { sessions, users } from '../db/schema'
 import { SESSION_TTL_MS } from '../lib/constants'
 import { generateSessionToken, hashToken } from '../lib/crypto'
 import { UnauthorizedError } from '../lib/errors'
+import { redis, RedisKeys } from '../lib/redis'
 import { fetchSteamProfile, verifySteamOpenId } from '../lib/steam'
 import type { AuthUser } from '../types/hono'
 
@@ -95,18 +96,42 @@ export class AuthService {
   async createSession(userId: string): Promise<string> {
     const token = generateSessionToken()
     const expiresAt = new Date(Date.now() + SESSION_TTL_MS)
+    const tokenHash = hashToken(token)
 
     await db.insert(sessions).values({
       userId,
-      tokenHash: hashToken(token),
+      tokenHash,
       expiresAt,
     })
+
+    const user = await db.query.users.findFirst({ where: eq(users.id, userId) })
+    if (user) {
+      const authUser: AuthUser = {
+        id: user.id,
+        steamId64: user.steamId64,
+        username: user.username,
+        avatarUrl: user.avatarUrl,
+        profileUrl: user.profileUrl,
+      }
+      const ttlSeconds = Math.max(1, Math.floor((expiresAt.getTime() - Date.now()) / 1000))
+      await redis.set(RedisKeys.session(tokenHash), JSON.stringify(authUser), 'EX', ttlSeconds)
+    }
 
     return token
   }
 
   async resolveUser(token: string | undefined): Promise<AuthUser | null> {
     if (!token) return null
+
+    const tokenHash = hashToken(token)
+    const cached = await redis.get(RedisKeys.session(tokenHash))
+    if (cached) {
+      try {
+        return JSON.parse(cached) as AuthUser
+      } catch {
+        await redis.del(RedisKeys.session(tokenHash))
+      }
+    }
 
     const row = await db
       .select({
@@ -115,18 +140,31 @@ export class AuthService {
         username: users.username,
         avatarUrl: users.avatarUrl,
         profileUrl: users.profileUrl,
+        expiresAt: sessions.expiresAt,
       })
       .from(sessions)
       .innerJoin(users, eq(sessions.userId, users.id))
-      .where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, new Date())))
+      .where(and(eq(sessions.tokenHash, tokenHash), gt(sessions.expiresAt, new Date())))
       .limit(1)
 
-    return row[0] ? toAuthUser(row[0]) : null
+    if (!row[0]) return null
+
+    const user = toAuthUser(row[0])
+    const ttlSeconds = Math.max(1, Math.floor((row[0].expiresAt.getTime() - Date.now()) / 1000))
+    await redis.set(
+      RedisKeys.session(tokenHash),
+      JSON.stringify(user),
+      'EX',
+      Math.min(ttlSeconds, 3600),
+    )
+    return user
   }
 
   async logout(token: string | undefined): Promise<void> {
     if (!token) return
-    await db.delete(sessions).where(eq(sessions.tokenHash, hashToken(token)))
+    const tokenHash = hashToken(token)
+    await redis.del(RedisKeys.session(tokenHash))
+    await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash))
   }
 
   setSessionCookie(c: Context, token: string): void {

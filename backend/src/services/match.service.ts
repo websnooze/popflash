@@ -15,6 +15,14 @@ import {
 import { ACTIVE_DUTY_MAPS, resolveDathostLocation } from '../lib/constants'
 import { generateMatchPassword, generateRconPassword } from '../lib/crypto'
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../lib/errors'
+import {
+  acquireLock,
+  claimOnce,
+  RedisKeys,
+  releaseLock,
+  webhookClaimTtlSeconds,
+} from '../lib/redis'
+import { enqueueJob } from './redis/job-queue'
 import type { AuthUser } from '../types/hono'
 import { dathostClient, DathostApiError } from './dathost/client'
 import type { DathostMatch } from './dathost/types'
@@ -54,6 +62,19 @@ export type MatchView = {
 
 export class MatchService {
   async launchFromLobby(user: AuthUser, lobbyId: string): Promise<MatchView> {
+    const lockToken = await acquireLock(RedisKeys.lockLaunch(lobbyId), 90)
+    if (!lockToken) {
+      throw new ConflictError('Match launch already in progress for this lobby')
+    }
+
+    try {
+      return await this.launchFromLobbyLocked(user, lobbyId)
+    } finally {
+      await releaseLock(RedisKeys.lockLaunch(lobbyId), lockToken)
+    }
+  }
+
+  private async launchFromLobbyLocked(user: AuthUser, lobbyId: string): Promise<MatchView> {
     const lobby = await lobbyService.requireHostLobby(user.id, lobbyId)
 
     if (lobby.status === 'map_veto') {
@@ -285,6 +306,18 @@ export class MatchService {
       throw new BadRequestError('Invalid webhook payload')
     }
 
+    const latestEvent = payload.events?.[payload.events.length - 1]
+    const eventName = latestEvent?.event
+    const eventIndex = Math.max(0, (payload.events?.length ?? 1) - 1)
+    const fingerprint = `${eventName ?? 'unknown'}:${latestEvent?.timestamp ?? 0}:${eventIndex}:${payload.rounds_played ?? 0}:${payload.finished ? 1 : 0}`
+    const claimed = await claimOnce(
+      RedisKeys.webhookDathost(payload.id, fingerprint),
+      webhookClaimTtlSeconds(eventName),
+    )
+    if (!claimed) {
+      return
+    }
+
     const match = await db.query.matches.findFirst({
       where: eq(matches.dathostMatchId, payload.id),
     })
@@ -293,9 +326,6 @@ export class MatchService {
       // Ignore unknown matches (e.g. manual tests)
       return
     }
-
-    const latestEvent = payload.events?.[payload.events.length - 1]
-    const eventName = latestEvent?.event
 
     const nextStatus = this.mapWebhookStatus(payload, eventName)
     const connect = await this.maybeResolveConnect(match, eventName)
@@ -347,11 +377,17 @@ export class MatchService {
 
     if (eventName === 'server_ready_for_players' && connect) {
       wsHub.emitMatchConnect(match.lobbyId, match.id, connect)
-      await this.loadFragstackConfig(match.id, match.dathostServerId)
+      void enqueueJob({ type: 'load_fragstack_config', matchId: match.id })
     }
 
     if (eventName === 'match_ended' || eventName === 'gotv_stopped' || eventName === 'match_canceled') {
-      await this.teardownServer(match)
+      if (match.dathostServerId) {
+        void enqueueJob({
+          type: 'teardown_dathost',
+          serverId: match.dathostServerId,
+          matchId: match.id,
+        })
+      }
       await db
         .update(lobbies)
         .set({
@@ -467,35 +503,29 @@ export class MatchService {
 
   private async teardownServer(match: Match): Promise<void> {
     if (!match.dathostServerId) return
-
-    try {
-      await dathostClient.deleteServer(match.dathostServerId)
-    } catch {
-      // Best-effort — autostop remains as safety net
-    }
+    void enqueueJob({
+      type: 'teardown_dathost',
+      serverId: match.dathostServerId,
+      matchId: match.id,
+    })
   }
 
-  /**
-   * After DatHost reports the server is ready, load Fragstack match config into Fragstack via console.
-   * Uses DatHost console API (not in-game RCON password).
-   */
-  private async loadFragstackConfig(matchId: string, dathostServerId: string | null): Promise<void> {
-    if (!dathostServerId) return
+  /** Job worker: load match JSON into Fragstack on the game server. */
+  async runLoadFragstackConfigJob(matchId: string): Promise<void> {
+    const match = await this.requireMatch(matchId)
+    if (!match.dathostServerId) {
+      throw new Error(`Match ${matchId} has no DatHost server`)
+    }
 
     const base = env.PUBLIC_URL.replace(/\/$/, '')
     const url = `${base}/matches/${matchId}/fragstack.json`
-    // Fragstack: fragstack_loadmatch_url "<url>" "<header_key>" "<header_value>"
     const line = `fragstack_loadmatch_url "${url}" "Authorization" "${env.DATHOST_WEBHOOK_SECRET}"`
+    await dathostClient.sendConsole(match.dathostServerId, line)
+  }
 
-    try {
-      await dathostClient.sendConsole(dathostServerId, line)
-    } catch (error) {
-      console.error('[Fragstack] loadmatch_url failed', {
-        matchId,
-        dathostServerId,
-        error: error instanceof Error ? error.message : error,
-      })
-    }
+  /** Job worker: delete ephemeral DatHost server. */
+  async runTeardownServerJob(serverId: string): Promise<void> {
+    await dathostClient.deleteServer(serverId)
   }
 
   private async maybeResolveConnect(

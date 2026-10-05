@@ -4,6 +4,13 @@ import { teamMembers, teams, tournamentEntries, users } from '../db/schema'
 import { env } from '../config/env'
 import { generateInviteToken } from '../lib/crypto'
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../lib/errors'
+import {
+  cacheGet,
+  cacheSet,
+  invalidateTeamCache,
+  rateLimit,
+  RedisKeys,
+} from '../lib/redis'
 import type { AuthUser } from '../types/hono'
 
 export type TeamMemberView = {
@@ -63,17 +70,22 @@ export class TeamService {
       role: 'captain',
     })
 
+    await invalidateTeamCache(team!.id)
     return this.getView(team!.id, user.id)
   }
 
   async getView(teamId: string, viewerUserId?: string): Promise<TeamView> {
+    const viewerKey = viewerUserId ?? 'anon'
+    const cached = await cacheGet<TeamView>(RedisKeys.cacheTeamView(teamId, viewerKey))
+    if (cached) return cached
+
     const team = await db.query.teams.findFirst({ where: eq(teams.id, teamId) })
     if (!team) throw new NotFoundError('Team not found')
 
     const members = await this.loadMembers(teamId)
     const canSeeInvite = viewerUserId === team.captainUserId
 
-    return {
+    const view: TeamView = {
       id: team.id,
       name: team.name,
       tag: team.tag,
@@ -85,6 +97,9 @@ export class TeamService {
       createdAt: team.createdAt,
       updatedAt: team.updatedAt,
     }
+
+    await cacheSet(RedisKeys.cacheTeamView(teamId, viewerKey), view, 30)
+    return view
   }
 
   async getInvitePreview(token: string): Promise<{
@@ -123,16 +138,25 @@ export class TeamService {
       role: 'player',
     })
 
+    await invalidateTeamCache(team.id)
     return this.getView(team.id, user.id)
   }
 
   async regenerateInvite(user: AuthUser, teamId: string): Promise<TeamView> {
     await this.requireCaptain(user.id, teamId)
+
+    const rl = await rateLimit(RedisKeys.rateLimitInviteRegenerate(teamId), 3, 3600)
+    if (!rl.allowed) {
+      throw new BadRequestError('Invite link was regenerated too recently')
+    }
+
     const inviteToken = generateInviteToken()
     await db
       .update(teams)
       .set({ inviteToken, updatedAt: new Date() })
       .where(eq(teams.id, teamId))
+
+    await invalidateTeamCache(teamId)
     return this.getView(teamId, user.id)
   }
 
@@ -151,6 +175,7 @@ export class TeamService {
         updatedAt: new Date(),
       })
       .where(eq(teams.id, teamId))
+    await invalidateTeamCache(teamId)
     return this.getView(teamId, user.id)
   }
 
@@ -173,6 +198,7 @@ export class TeamService {
       await this.transferCaptainInternal(teamId, user.id, input.userId)
     }
 
+    await invalidateTeamCache(teamId)
     return this.getView(teamId, user.id)
   }
 
@@ -200,6 +226,7 @@ export class TeamService {
         .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, targetUserId)))
     }
 
+    await invalidateTeamCache(teamId)
     return this.getView(teamId, user.id)
   }
 
@@ -211,6 +238,7 @@ export class TeamService {
     await db
       .delete(teamMembers)
       .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, userId)))
+    await invalidateTeamCache(teamId)
     return this.getView(teamId, user.id)
   }
 
@@ -231,6 +259,7 @@ export class TeamService {
       .delete(teamMembers)
       .where(and(eq(teamMembers.teamId, teamId), eq(teamMembers.userId, user.id)))
 
+    await invalidateTeamCache(teamId)
     return { ok: true }
   }
 

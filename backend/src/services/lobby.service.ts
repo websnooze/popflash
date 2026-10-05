@@ -32,7 +32,17 @@ import {
   type CreateLobbyInput,
   type LobbySettingsPatch,
 } from '../lib/lobby-settings'
+import {
+  cacheGet,
+  cacheSet,
+  invalidateLobbyCaches,
+  pushChatMessageCache,
+  rateLimit,
+  redis,
+  RedisKeys,
+} from '../lib/redis'
 import type { AuthUser } from '../types/hono'
+import { readyCheckScheduler } from './redis/ready-check'
 import { wsHub } from './websocket/hub'
 
 export { createLobbySchema, lobbySettingsPatchSchema }
@@ -130,21 +140,12 @@ function hashLobbyPassword(password: string): string {
 }
 
 class ReadyTimerRegistry {
-  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>()
-
   clear(lobbyId: string) {
-    const timer = this.timers.get(lobbyId)
-    if (timer) clearTimeout(timer)
-    this.timers.delete(lobbyId)
+    void readyCheckScheduler.clear(lobbyId)
   }
 
-  start(lobbyId: string, onExpire: () => void) {
-    this.clear(lobbyId)
-    const timer = setTimeout(() => {
-      this.timers.delete(lobbyId)
-      onExpire()
-    }, READY_CHECK_SECONDS * 1000)
-    this.timers.set(lobbyId, timer)
+  start(lobbyId: string, _onExpire: () => void) {
+    void readyCheckScheduler.schedule(lobbyId)
   }
 }
 
@@ -152,6 +153,11 @@ const readyTimers = new ReadyTimerRegistry()
 
 export class LobbyService {
   async createLobby(host: AuthUser, input: CreateLobbyInput): Promise<LobbyView> {
+    const rl = await rateLimit(RedisKeys.rateLimitCreateLobby(host.id), 5, 60)
+    if (!rl.allowed) {
+      throw new BadRequestError('Too many lobbies created — try again in a minute')
+    }
+
     await this.ensureUserNotInActiveLobby(host.id)
 
     if (input.privacy === 'password' && !input.lobbyPassword) {
@@ -301,6 +307,11 @@ export class LobbyService {
     code: string,
     options: { asSpectator?: boolean; password?: string } = {},
   ): Promise<LobbyView> {
+    const rl = await rateLimit(RedisKeys.rateLimitJoinLobby(user.id), 20, 60)
+    if (!rl.allowed) {
+      throw new BadRequestError('Too many join attempts — slow down')
+    }
+
     const lobby = await db.query.lobbies.findFirst({
       where: eq(lobbies.code, code.toUpperCase()),
     })
@@ -824,6 +835,11 @@ export class LobbyService {
     message: string,
     channel: 'general' | 'team' = 'general',
   ): Promise<ChatMessageView> {
+    const rl = await rateLimit(RedisKeys.rateLimitChat(user.id), 20, 10)
+    if (!rl.allowed) {
+      throw new BadRequestError('Too many messages — slow down')
+    }
+
     await this.requireLobby(lobbyId)
     const membership = await this.requireMembership(lobbyId, user.id)
 
@@ -877,6 +893,8 @@ export class LobbyService {
       wsHub.emitChatMessage(lobbyId, view)
     }
 
+    void pushChatMessageCache(lobbyId, view)
+
     return view
   }
 
@@ -894,6 +912,31 @@ export class LobbyService {
       })
       if (membership?.team === 'team1' || membership?.team === 'team2') {
         viewerTeam = membership.team
+      }
+    }
+
+    const cachedRows = await redis.lrange(RedisKeys.chatRecent(lobbyId), 0, limit * 2 - 1)
+    if (cachedRows.length > 0) {
+      const parsed = cachedRows
+        .map((row) => {
+          try {
+            return JSON.parse(row) as ChatMessageView
+          } catch {
+            return null
+          }
+        })
+        .filter((m): m is ChatMessageView => m != null)
+
+      const filtered = parsed
+        .filter((message) => {
+          if (message.channel !== 'team') return true
+          return Boolean(viewerTeam && message.team === viewerTeam)
+        })
+        .slice(0, limit)
+        .reverse()
+
+      if (filtered.length >= Math.min(limit, 20)) {
+        return filtered
       }
     }
 
@@ -929,12 +972,23 @@ export class LobbyService {
   }
 
   async listPublicLobbies(): Promise<LobbyView[]> {
+    const cached = await redis.get(RedisKeys.publicLobbies)
+    if (cached) {
+      try {
+        return JSON.parse(cached) as LobbyView[]
+      } catch {
+        // fall through
+      }
+    }
+
     const rows = await db.query.lobbies.findMany({
       where: and(eq(lobbies.privacy, 'public'), ne(lobbies.status, 'closed')),
       orderBy: [desc(lobbies.createdAt)],
       limit: 50,
     })
-    return Promise.all(rows.map((lobby) => this.getLobbyView(lobby.id)))
+    const views = await Promise.all(rows.map((lobby) => this.getLobbyView(lobby.id)))
+    await redis.set(RedisKeys.publicLobbies, JSON.stringify(views), 'EX', 3)
+    return views
   }
 
   async getLobbyByCode(code: string): Promise<LobbyView> {
@@ -945,7 +999,18 @@ export class LobbyService {
     return this.getLobbyView(lobby.id)
   }
 
-  async getLobbyView(lobbyId: string): Promise<LobbyView> {
+  async getLobbyView(lobbyId: string, options?: { skipCache?: boolean }): Promise<LobbyView> {
+    if (!options?.skipCache) {
+      const cached = await cacheGet<LobbyView>(RedisKeys.cacheLobbyView(lobbyId))
+      if (cached) return cached
+    }
+
+    const view = await this.buildLobbyViewUncached(lobbyId)
+    await cacheSet(RedisKeys.cacheLobbyView(lobbyId), view, 4)
+    return view
+  }
+
+  private async buildLobbyViewUncached(lobbyId: string): Promise<LobbyView> {
     const lobby = await this.requireLobby(lobbyId)
     const rows = await db
       .select({ player: lobbyPlayers, user: users })
@@ -1055,19 +1120,23 @@ export class LobbyService {
       .set({ isReady: false })
       .where(and(eq(lobbyPlayers.lobbyId, lobbyId), inArray(lobbyPlayers.team, PLAYING_TEAMS)))
 
-    const endsAt = new Date(Date.now() + READY_CHECK_SECONDS * 1000).toISOString()
+    const endsAt = new Date(Date.now() + READY_CHECK_SECONDS * 1000)
     await db
       .update(lobbies)
       .set({
         status: 'ready_check',
-        readyCheck: { active: true, endsAt },
+        readyCheck: { active: true, endsAt: endsAt.toISOString() },
         updatedAt: new Date(),
       })
       .where(eq(lobbies.id, lobbyId))
 
-    readyTimers.start(lobbyId, () => {
-      void this.onReadyCheckExpired(lobbyId)
-    })
+    await readyCheckScheduler.clear(lobbyId)
+    await readyCheckScheduler.schedule(lobbyId, endsAt.getTime())
+  }
+
+  /** Called by the Redis ready-check worker (any instance may win the lock). */
+  async handleReadyCheckExpired(lobbyId: string): Promise<void> {
+    await this.onReadyCheckExpired(lobbyId)
   }
 
   private async onReadyCheckExpired(lobbyId: string): Promise<void> {
@@ -1220,7 +1289,9 @@ export class LobbyService {
   }
 
   private async broadcastLobby(lobbyId: string): Promise<LobbyView> {
-    const view = await this.getLobbyView(lobbyId)
+    await invalidateLobbyCaches(lobbyId)
+    const view = await this.getLobbyView(lobbyId, { skipCache: true })
+    await cacheSet(RedisKeys.cacheLobbyView(lobbyId), view, 4)
     wsHub.emitLobbyUpdated(lobbyId, view)
     return view
   }

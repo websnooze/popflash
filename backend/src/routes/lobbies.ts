@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { requireAuth } from '../middleware/auth'
 import { createLobbySchema, lobbyService } from '../services/lobby.service'
+import { redis, RedisKeys } from '../lib/redis'
 import type { AppEnv } from '../types/hono'
 
 export const lobbyRoutes = new Hono<AppEnv>()
@@ -23,11 +24,6 @@ lobbyRoutes.post('/', requireAuth, async (c) => {
   return c.json({ lobby }, 201)
 })
 
-lobbyRoutes.get('/:lobbyId', async (c) => {
-  const lobby = await lobbyService.getLobbyView(c.req.param('lobbyId'))
-  return c.json({ lobby })
-})
-
 lobbyRoutes.post('/join', requireAuth, async (c) => {
   const body = z
     .object({
@@ -44,6 +40,12 @@ lobbyRoutes.post('/join', requireAuth, async (c) => {
   return c.json({ lobby })
 })
 
+lobbyRoutes.get('/:lobbyId/presence', async (c) => {
+  const lobbyId = c.req.param('lobbyId')
+  const userIds = await redis.smembers(RedisKeys.presenceLobby(lobbyId))
+  return c.json({ lobbyId, userIds })
+})
+
 lobbyRoutes.get('/:lobbyId/chat', async (c) => {
   const limit = Number(c.req.query('limit') ?? 100)
   const user = c.get('user')
@@ -52,4 +54,9 @@ lobbyRoutes.get('/:lobbyId/chat', async (c) => {
     limit,
   })
   return c.json({ messages })
+})
+
+lobbyRoutes.get('/:lobbyId', async (c) => {
+  const lobby = await lobbyService.getLobbyView(c.req.param('lobbyId'))
+  return c.json({ lobby })
 })

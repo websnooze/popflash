@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 import { env } from '../config/env'
+import { BadRequestError } from '../lib/errors'
+import { rateLimit, RedisKeys } from '../lib/redis'
 import { buildSteamLoginUrl } from '../lib/steam'
 import { authService } from '../services/auth.service'
 import { requireAuth } from '../middleware/auth'
@@ -13,6 +15,15 @@ authRoutes.get('/steam', (c) => {
 })
 
 authRoutes.get('/steam/callback', async (c) => {
+  const clientIp =
+    c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ??
+    c.req.header('x-real-ip') ??
+    'unknown'
+  const rl = await rateLimit(RedisKeys.rateLimitSteamAuth(clientIp), 15, 60)
+  if (!rl.allowed) {
+    throw new BadRequestError('Too many login attempts — try again later')
+  }
+
   const query: Record<string, string> = {}
   for (const [key, value] of Object.entries(c.req.query())) {
     if (typeof value === 'string') {

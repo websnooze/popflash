@@ -15,6 +15,15 @@ import {
 } from '../db/schema'
 import { ACTIVE_DUTY_MAPS } from '../lib/constants'
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../lib/errors'
+import {
+  acquireLock,
+  cacheGet,
+  cacheSet,
+  invalidateTournamentCache,
+  rateLimit,
+  RedisKeys,
+  releaseLock,
+} from '../lib/redis'
 import { slugifyTitle } from '../lib/tournament-settings'
 import type { AuthUser } from '../types/hono'
 import {
@@ -27,6 +36,7 @@ import {
 } from './bracket'
 import { lobbyService } from './lobby.service'
 import { teamService } from './team.service'
+import { wsHub } from './websocket/hub'
 
 export type EntryView = {
   id: string
@@ -182,9 +192,14 @@ export class TournamentService {
   }
 
   async getById(id: string): Promise<TournamentDetail> {
+    const cached = await cacheGet<TournamentDetail>(RedisKeys.cacheTournament(id))
+    if (cached) return cached
+
     const t = await db.query.tournaments.findFirst({ where: eq(tournaments.id, id) })
     if (!t) throw new NotFoundError('Tournament not found')
-    return this.buildDetail(t)
+    const detail = await this.buildDetail(t)
+    await cacheSet(RedisKeys.cacheTournament(id), detail, 5)
+    return detail
   }
 
   async update(user: AuthUser, id: string, patch: Record<string, unknown>): Promise<TournamentDetail> {
@@ -244,6 +259,11 @@ export class TournamentService {
   }
 
   async registerEntry(user: AuthUser, tournamentId: string, teamId: string): Promise<TournamentDetail> {
+    const rl = await rateLimit(RedisKeys.rateLimitTournamentRegister(user.id), 10, 60)
+    if (!rl.allowed) {
+      throw new BadRequestError('Too many registration attempts — slow down')
+    }
+
     const t = await db.query.tournaments.findFirst({ where: eq(tournaments.id, tournamentId) })
     if (!t) throw new NotFoundError('Tournament not found')
     if (t.status !== 'registration' && t.status !== 'draft') {
@@ -281,7 +301,7 @@ export class TournamentService {
           .set({ status: 'accepted', registeredAt: new Date() })
           .where(eq(tournamentEntries.id, existing.id))
       }
-      return this.getById(tournamentId)
+      return this.notifyTournament(tournamentId)
     }
 
     await db.insert(tournamentEntries).values({
@@ -290,7 +310,7 @@ export class TournamentService {
       status: 'accepted',
     })
 
-    return this.getById(tournamentId)
+    return this.notifyTournament(tournamentId)
   }
 
   async checkIn(user: AuthUser, tournamentId: string, entryId: string): Promise<TournamentDetail> {
@@ -307,7 +327,7 @@ export class TournamentService {
       .set({ status: 'checked_in' })
       .where(eq(tournamentEntries.id, entryId))
 
-    return this.getById(tournamentId)
+    return this.notifyTournament(tournamentId)
   }
 
   async withdrawEntry(user: AuthUser, tournamentId: string, entryId: string): Promise<TournamentDetail> {
@@ -333,11 +353,18 @@ export class TournamentService {
       .set({ status: 'withdrawn' })
       .where(eq(tournamentEntries.id, entryId))
 
-    return this.getById(tournamentId)
+    return this.notifyTournament(tournamentId)
   }
 
   async generateBracket(user: AuthUser, tournamentId: string, randomSeed = false): Promise<TournamentDetail> {
     await this.requireOrganizer(user.id, tournamentId)
+
+    const lockToken = await acquireLock(RedisKeys.lockTournamentBracket(tournamentId), 120)
+    if (!lockToken) {
+      throw new ConflictError('Bracket generation already in progress')
+    }
+
+    try {
     const t = await db.query.tournaments.findFirst({ where: eq(tournaments.id, tournamentId) })
     if (!t) throw new NotFoundError('Tournament not found')
 
@@ -384,7 +411,11 @@ export class TournamentService {
 
     await this.refreshFixtureReadyStates(tournamentId)
 
-    return this.getById(tournamentId)
+    const detail = await this.notifyTournament(tournamentId)
+    return detail
+    } finally {
+      await releaseLock(RedisKeys.lockTournamentBracket(tournamentId), lockToken)
+    }
   }
 
   async patchFixture(
@@ -438,11 +469,18 @@ export class TournamentService {
       await this.applyAdvance(tournamentId, matchId)
     }
 
-    return this.getById(tournamentId)
+    return this.notifyTournament(tournamentId)
   }
 
   async openLobby(user: AuthUser, tournamentId: string, matchId: string) {
     await this.requireOrganizer(user.id, tournamentId)
+
+    const lockToken = await acquireLock(RedisKeys.lockTournamentFixture(tournamentId, matchId), 120)
+    if (!lockToken) {
+      throw new ConflictError('Opening lobby already in progress for this match')
+    }
+
+    try {
     const fixture = await this.requireFixture(tournamentId, matchId)
     if (!fixture.team1EntryId || !fixture.team2EntryId) {
       throw new ConflictError('Both teams must be assigned before opening a lobby')
@@ -486,7 +524,11 @@ export class TournamentService {
       .where(eq(tournamentMatches.id, matchId))
 
     const lobbyView = await lobbyService.getLobbyView(lobby.id)
-    return { tournament: await this.getById(tournamentId), lobby: lobbyView }
+    const tournament = await this.notifyTournament(tournamentId)
+    return { tournament, lobby: lobbyView }
+    } finally {
+      await releaseLock(RedisKeys.lockTournamentFixture(tournamentId, matchId), lockToken)
+    }
   }
 
   async onMatchFinished(
@@ -528,6 +570,15 @@ export class TournamentService {
       await this.applyAdvance(fixture.tournamentId, tournamentMatchId)
       await this.maybeGenerateNextSwissRound(fixture.tournamentId)
     }
+
+    await this.notifyTournament(fixture.tournamentId)
+  }
+
+  private async notifyTournament(tournamentId: string): Promise<TournamentDetail> {
+    await invalidateTournamentCache(tournamentId)
+    const detail = await this.getById(tournamentId)
+    wsHub.emitTournamentUpdated(tournamentId, detail)
+    return detail
   }
 
   private async maybeGenerateNextSwissRound(tournamentId: string) {
@@ -571,6 +622,10 @@ export class TournamentService {
   }
 
   private async applyAdvance(tournamentId: string, matchId: string) {
+    const lockToken = await acquireLock(RedisKeys.lockTournamentAdvance(tournamentId, matchId), 60)
+    if (!lockToken) return
+
+    try {
     const fixture = await db.query.tournamentMatches.findFirst({
       where: eq(tournamentMatches.id, matchId),
     })
@@ -597,6 +652,9 @@ export class TournamentService {
     }
 
     await this.refreshFixtureReadyStates(tournamentId)
+    } finally {
+      await releaseLock(RedisKeys.lockTournamentAdvance(tournamentId, matchId), lockToken)
+    }
   }
 
   private async refreshFixtureReadyStates(tournamentId: string) {

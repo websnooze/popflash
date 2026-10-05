@@ -1,4 +1,9 @@
 import { env } from '../../config/env'
+import {
+  dathostCircuitAllow,
+  dathostCircuitRecordFailure,
+  dathostCircuitRecordSuccess,
+} from '../../lib/redis'
 import type {
   DathostCreateMatchInput,
   DathostDuplicateOptions,
@@ -99,6 +104,10 @@ export class DathostClient {
     body?: BodyInit | null,
     headers: Record<string, string> = {},
   ): Promise<T> {
+    if (!(await dathostCircuitAllow())) {
+      throw new DathostApiError(503, 'DatHost circuit breaker open — try again shortly')
+    }
+
     const response = await fetch(`${DATHOST_BASE_URL}${path}`, {
       method,
       headers: {
@@ -110,12 +119,15 @@ export class DathostClient {
 
     if (!response.ok) {
       const text = await response.text()
+      await dathostCircuitRecordFailure()
       throw new DathostApiError(
         response.status,
         `DatHost API ${method} ${path} failed with ${response.status}`,
         text,
       )
     }
+
+    await dathostCircuitRecordSuccess()
 
     if (response.status === 204) {
       return undefined as T

@@ -3,6 +3,11 @@ import { db } from '../db'
 import { lobbies, lobbyPlayers, matches, users } from '../db/schema'
 import { env } from '../config/env'
 import { ForbiddenError, NotFoundError } from '../lib/errors'
+import {
+  claimOnce,
+  RedisKeys,
+  webhookClaimTtlSeconds,
+} from '../lib/redis'
 import type { LobbyMatchSettings } from '../db/schema'
 import { lobbyService } from './lobby.service'
 import { wsHub } from './websocket/hub'
@@ -131,6 +136,13 @@ export class FragstackBridgeService {
     }
 
     if (!body.event || !body.matchid) return
+
+    const fingerprint = `${body.event}:${body.map ?? ''}:${body.team1_score ?? ''}:${body.team2_score ?? ''}:${body.tournament_match_id ?? ''}`
+    const claimed = await claimOnce(
+      RedisKeys.webhookFragstack(body.matchid, fingerprint),
+      webhookClaimTtlSeconds(body.event),
+    )
+    if (!claimed) return
 
     const match = await db.query.matches.findFirst({
       where: eq(matches.id, body.matchid),
