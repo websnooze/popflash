@@ -3,6 +3,7 @@ import { db } from '../db'
 import {
   DEFAULT_MATCH_SETTINGS,
   lobbies,
+  teamMembers,
   teams,
   tournamentEntries,
   tournamentMatches,
@@ -36,6 +37,13 @@ export type EntryView = {
   seed: number | null
   status: string
   registeredAt: Date
+  members: {
+    userId: string
+    steamId64: string
+    username: string
+    avatarUrl: string | null
+    role: string
+  }[]
 }
 
 export type FixtureView = {
@@ -213,7 +221,14 @@ export class TournamentService {
               : null
             : t.startsAt,
         settings: patch.settings
-          ? { ...t.settings, ...(patch.settings as TournamentSettings) }
+          ? {
+              ...t.settings,
+              ...(patch.settings as TournamentSettings),
+              matchSettings: {
+                ...t.settings.matchSettings,
+                ...((patch.settings as TournamentSettings).matchSettings ?? {}),
+              },
+            }
           : t.settings,
         updatedAt: new Date(),
       })
@@ -252,14 +267,28 @@ export class TournamentService {
       throw new BadRequestError(`Team needs at least ${t.teamSize} players (excluding coaches)`)
     }
 
-    await db
-      .insert(tournamentEntries)
-      .values({
-        tournamentId,
-        teamId,
-        status: 'accepted',
-      })
-      .onConflictDoNothing()
+    const existing = await db.query.tournamentEntries.findFirst({
+      where: and(
+        eq(tournamentEntries.tournamentId, tournamentId),
+        eq(tournamentEntries.teamId, teamId),
+      ),
+    })
+
+    if (existing) {
+      if (existing.status === 'withdrawn') {
+        await db
+          .update(tournamentEntries)
+          .set({ status: 'accepted', registeredAt: new Date() })
+          .where(eq(tournamentEntries.id, existing.id))
+      }
+      return this.getById(tournamentId)
+    }
+
+    await db.insert(tournamentEntries).values({
+      tournamentId,
+      teamId,
+      status: 'accepted',
+    })
 
     return this.getById(tournamentId)
   }
@@ -276,6 +305,32 @@ export class TournamentService {
     await db
       .update(tournamentEntries)
       .set({ status: 'checked_in' })
+      .where(eq(tournamentEntries.id, entryId))
+
+    return this.getById(tournamentId)
+  }
+
+  async withdrawEntry(user: AuthUser, tournamentId: string, entryId: string): Promise<TournamentDetail> {
+    const t = await db.query.tournaments.findFirst({ where: eq(tournaments.id, tournamentId) })
+    if (!t) throw new NotFoundError('Tournament not found')
+    if (t.status === 'live' || t.status === 'completed' || t.status === 'canceled') {
+      throw new ConflictError('Cannot withdraw after the tournament has started')
+    }
+
+    const entry = await db.query.tournamentEntries.findFirst({
+      where: and(eq(tournamentEntries.id, entryId), eq(tournamentEntries.tournamentId, tournamentId)),
+    })
+    if (!entry) throw new NotFoundError('Entry not found')
+
+    const isCap = await teamService.isCaptain(user.id, entry.teamId)
+    const isOrga = t.organizerUserId === user.id
+    if (!isCap && !isOrga) {
+      throw new ForbiddenError('Only the team captain or organizer can withdraw')
+    }
+
+    await db
+      .update(tournamentEntries)
+      .set({ status: 'withdrawn' })
       .where(eq(tournamentEntries.id, entryId))
 
     return this.getById(tournamentId)
@@ -686,7 +741,37 @@ export class TournamentService {
           )
         : []
 
-    const count = entries.length
+    const teamIds = entries.map((e) => e.entry.teamId)
+    const rosterRows =
+      teamIds.length === 0
+        ? []
+        : await db
+            .select({
+              teamId: teamMembers.teamId,
+              userId: teamMembers.userId,
+              role: teamMembers.role,
+              username: users.username,
+              avatarUrl: users.avatarUrl,
+              steamId64: users.steamId64,
+            })
+            .from(teamMembers)
+            .innerJoin(users, eq(teamMembers.userId, users.id))
+            .where(inArray(teamMembers.teamId, teamIds))
+
+    const membersByTeam = new Map<string, EntryView['members']>()
+    for (const row of rosterRows) {
+      const list = membersByTeam.get(row.teamId) ?? []
+      list.push({
+        userId: row.userId,
+        steamId64: row.steamId64,
+        username: row.username,
+        avatarUrl: row.avatarUrl,
+        role: row.role,
+      })
+      membersByTeam.set(row.teamId, list)
+    }
+
+    const count = entries.filter((e) => e.entry.status !== 'withdrawn').length
 
     return {
       id: t.id,
@@ -714,6 +799,7 @@ export class TournamentService {
         seed: e.entry.seed,
         status: e.entry.status,
         registeredAt: e.entry.registeredAt,
+        members: membersByTeam.get(e.entry.teamId) ?? [],
       })),
       fixtures: fixtures.map((f) => ({
         id: f.id,

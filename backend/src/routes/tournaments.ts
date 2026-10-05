@@ -83,6 +83,22 @@ tournamentRoutes.post('/:id/check-in', requireAuth, async (c) => {
   return c.json({ tournament })
 })
 
+tournamentRoutes.post('/:id/entries/:entryId/withdraw', requireAuth, async (c) => {
+  const user = c.get('user')!
+  const tournament = await tournamentService.withdrawEntry(
+    user,
+    c.req.param('id'),
+    c.req.param('entryId'),
+  )
+  return c.json({ tournament })
+})
+
+tournamentRoutes.post('/:id/cancel', requireAuth, async (c) => {
+  const user = c.get('user')!
+  const tournament = await tournamentService.setStatus(user, c.req.param('id'), 'canceled')
+  return c.json({ tournament })
+})
+
 tournamentRoutes.get('/:id/bracket', async (c) => {
   const tournament = await tournamentService.getById(c.req.param('id'))
   return c.json({

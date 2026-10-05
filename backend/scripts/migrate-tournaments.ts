@@ -15,6 +15,7 @@ await sql`
     name text NOT NULL,
     tag text,
     logo_url text,
+    invite_token text NOT NULL UNIQUE,
     captain_user_id uuid NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()

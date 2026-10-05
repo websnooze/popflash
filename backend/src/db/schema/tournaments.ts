@@ -74,6 +74,7 @@ export const teams = pgTable('teams', {
   name: text('name').notNull(),
   tag: text('tag'),
   logoUrl: text('logo_url'),
+  inviteToken: text('invite_token').notNull().unique(),
   captainUserId: uuid('captain_user_id')
     .notNull()
     .references(() => users.id, { onDelete: 'restrict' }),

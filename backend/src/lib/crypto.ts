@@ -23,3 +23,7 @@ export function generateMatchPassword(): string {
 export function generateRconPassword(): string {
   return randomBytes(12).toString('hex')
 }
+
+export function generateInviteToken(): string {
+  return randomBytes(16).toString('base64url')
+}
