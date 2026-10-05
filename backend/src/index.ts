@@ -3,6 +3,8 @@ import { env } from './config/env'
 import { startJobWorker } from './services/redis/job-queue'
 import { rehydrateReadyChecksFromDb } from './services/redis/ready-check-rehydrate'
 import { readyCheckScheduler } from './services/redis/ready-check'
+import { rehydrateSoloInactivityFromDb } from './services/redis/solo-inactivity-rehydrate'
+import { soloInactivityScheduler } from './services/redis/solo-inactivity'
 import { lobbyService } from './services/lobby.service'
 import {
   authenticateWebSocket,
@@ -15,9 +17,13 @@ const app = createApp()
 
 await wsHub.init()
 readyCheckScheduler.start((lobbyId) => lobbyService.handleReadyCheckExpired(lobbyId))
+soloInactivityScheduler.start((lobbyId) => lobbyService.handleSoloInactivityExpired(lobbyId))
 
 const restoredReadyChecks = await rehydrateReadyChecksFromDb((lobbyId) =>
   lobbyService.handleReadyCheckExpired(lobbyId),
+)
+const restoredSoloInactivity = await rehydrateSoloInactivityFromDb((lobbyId) =>
+  lobbyService.handleSoloInactivityExpired(lobbyId),
 )
 startJobWorker()
 
@@ -51,5 +57,5 @@ const server = Bun.serve<WsSessionData>({
 console.log(`Fragstack backend listening on http://localhost:${server.port}`)
 console.log(`WebSocket endpoint: ws://localhost:${server.port}/ws`)
 console.log(
-  `Redis: pub/sub, ready-check (rehydrated ${restoredReadyChecks}), job worker active`,
+  `Redis: pub/sub, ready-check (rehydrated ${restoredReadyChecks}), solo-inactivity (rehydrated ${restoredSoloInactivity}), job worker active`,
 )

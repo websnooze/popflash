@@ -5,17 +5,20 @@ import type { MatchConnectInfo, WsServerMessage, WsSessionData } from './types'
 type Socket = ServerWebSocket<WsSessionData>
 
 type WsBusEnvelope = {
+  originId: string
   message: WsServerMessage
   userIds?: string[]
 }
 
 type TournamentBusEnvelope = {
+  originId: string
   tournamentId: string
   type: string
   payload: unknown
 }
 
 class WebSocketHub {
+  private readonly instanceId = crypto.randomUUID()
   private readonly sockets = new Set<Socket>()
   private readonly lobbyRooms = new Map<string, Set<Socket>>()
   private readonly tournamentRooms = new Map<string, Set<Socket>>()
@@ -31,12 +34,15 @@ class WebSocketHub {
       try {
         if (channel === RedisChannels.ws) {
           const envelope = JSON.parse(raw) as WsBusEnvelope
+          // Same instance already delivered locally — skip echo.
+          if (envelope.originId === this.instanceId) return
           this.deliverLobbyLocal(envelope.message, envelope.userIds)
           return
         }
 
         if (channel === RedisChannels.tournament) {
           const envelope = JSON.parse(raw) as TournamentBusEnvelope
+          if (envelope.originId === this.instanceId) return
           this.deliverTournamentLocal(envelope)
         }
       } catch (error) {
@@ -105,7 +111,7 @@ class WebSocketHub {
   }
 
   emitChatMessage(lobbyId: string, payload: unknown, options?: { userIds?: string[] }): void {
-    void this.publishWs(
+    this.publishWs(
       {
         type: 'chat_message',
         lobbyId,
@@ -116,7 +122,7 @@ class WebSocketHub {
   }
 
   emitLobbyUpdated(lobbyId: string, payload: unknown): void {
-    void this.publishWs({
+    this.publishWs({
       type: 'lobby_updated',
       lobbyId,
       payload,
@@ -124,7 +130,7 @@ class WebSocketHub {
   }
 
   emitMatchUpdated(lobbyId: string, matchId: string, payload: unknown): void {
-    void this.publishWs({
+    this.publishWs({
       type: 'match_updated',
       lobbyId,
       matchId,
@@ -133,7 +139,7 @@ class WebSocketHub {
   }
 
   emitMatchConnect(lobbyId: string, matchId: string, connect: MatchConnectInfo): void {
-    void this.publishWs({
+    this.publishWs({
       type: 'match_connect',
       lobbyId,
       matchId,
@@ -142,21 +148,36 @@ class WebSocketHub {
   }
 
   emitTournamentUpdated(tournamentId: string, payload: unknown): void {
-    void this.publishTournament(tournamentId, 'tournament_updated', payload)
+    this.publishTournament(tournamentId, 'tournament_updated', payload)
   }
 
-  private async publishWs(message: WsServerMessage, userIds?: string[]): Promise<void> {
-    const envelope: WsBusEnvelope = { message, userIds }
-    await redis.publish(RedisChannels.ws, JSON.stringify(envelope))
+  /**
+   * Deliver to local sockets immediately, then fan-out via Redis for other instances.
+   * Critical when Redis is remote — waiting for pub/sub round-trip added seconds of lag.
+   */
+  private publishWs(message: WsServerMessage, userIds?: string[]): void {
+    this.deliverLobbyLocal(message, userIds)
+    const envelope: WsBusEnvelope = {
+      originId: this.instanceId,
+      message,
+      userIds,
+    }
+    void redis.publish(RedisChannels.ws, JSON.stringify(envelope)).catch((error) => {
+      console.error('[ws-hub] redis publish failed', error)
+    })
   }
 
-  private async publishTournament(
-    tournamentId: string,
-    type: string,
-    payload: unknown,
-  ): Promise<void> {
-    const envelope: TournamentBusEnvelope = { tournamentId, type, payload }
-    await redis.publish(RedisChannels.tournament, JSON.stringify(envelope))
+  private publishTournament(tournamentId: string, type: string, payload: unknown): void {
+    const envelope: TournamentBusEnvelope = {
+      originId: this.instanceId,
+      tournamentId,
+      type,
+      payload,
+    }
+    this.deliverTournamentLocal(envelope)
+    void redis.publish(RedisChannels.tournament, JSON.stringify(envelope)).catch((error) => {
+      console.error('[ws-hub] redis tournament publish failed', error)
+    })
   }
 
   private deliverLobbyLocal(message: WsServerMessage, userIds?: string[]): void {

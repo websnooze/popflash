@@ -1,7 +1,7 @@
 import type { ServerWebSocket } from 'bun'
 import { env } from '../../config/env'
-import { AppError, BadRequestError } from '../../lib/errors'
-import { rateLimit, RedisKeys, touchLobbyPresence } from '../../lib/redis'
+import { AppError } from '../../lib/errors'
+import { touchLobbyPresence } from '../../lib/redis'
 import { authService } from '../auth.service'
 import { lobbyService } from '../lobby.service'
 import { wsHub } from './hub'
@@ -24,10 +24,25 @@ function send(ws: ServerWebSocket<WsSessionData>, payload: unknown): void {
   }
 }
 
-async function refreshPresence(ws: ServerWebSocket<WsSessionData>): Promise<void> {
+/** In-memory rate limit — avoids remote Redis RTT on every click (join team, ready…). */
+const wsActionBuckets = new Map<string, { count: number; resetAt: number }>()
+
+function allowWsAction(userId: string, limit = 40, windowMs = 10_000): boolean {
+  const now = Date.now()
+  const bucket = wsActionBuckets.get(userId)
+  if (!bucket || now >= bucket.resetAt) {
+    wsActionBuckets.set(userId, { count: 1, resetAt: now + windowMs })
+    return true
+  }
+  if (bucket.count >= limit) return false
+  bucket.count += 1
+  return true
+}
+
+function refreshPresence(ws: ServerWebSocket<WsSessionData>): void {
   if (!ws.data.userId) return
   for (const lobbyId of ws.data.subscribedLobbyIds) {
-    await touchLobbyPresence(lobbyId, ws.data.userId)
+    void touchLobbyPresence(lobbyId, ws.data.userId)
   }
 }
 
@@ -45,7 +60,7 @@ export const websocketHandlers = {
 
     switch (parsed.type) {
       case 'ping':
-        await refreshPresence(ws)
+        refreshPresence(ws)
         send(ws, { type: 'pong' })
         break
 
@@ -55,7 +70,7 @@ export const websocketHandlers = {
           return
         }
         wsHub.subscribe(ws, parsed.lobbyId)
-        await refreshPresence(ws)
+        refreshPresence(ws)
         send(ws, { type: 'subscribed', lobbyId: parsed.lobbyId })
         try {
           const lobby = await lobbyService.getLobbyView(parsed.lobbyId)
@@ -100,8 +115,7 @@ export const websocketHandlers = {
           return
         }
 
-        const actionRl = await rateLimit(RedisKeys.rateLimitWsAction(ws.data.userId), 40, 10)
-        if (!actionRl.allowed) {
+        if (!allowWsAction(ws.data.userId)) {
           send(ws, { type: 'error', message: 'Too many actions — slow down' })
           return
         }
@@ -112,21 +126,24 @@ export const websocketHandlers = {
         }
 
         try {
-          const { db } = await import('../../db')
-          const { users } = await import('../../db/schema')
-          const { eq } = await import('drizzle-orm')
-          const row = await db.query.users.findFirst({ where: eq(users.id, ws.data.userId) })
-          if (!row) {
-            send(ws, { type: 'error', message: 'Authentication required' })
-            return
-          }
-
-          const authUser = {
-            id: row.id,
-            steamId64: row.steamId64,
-            username: row.username,
-            avatarUrl: row.avatarUrl,
-            profileUrl: row.profileUrl,
+          let authUser = ws.data.authUser
+          if (!authUser) {
+            const { db } = await import('../../db')
+            const { users } = await import('../../db/schema')
+            const { eq } = await import('drizzle-orm')
+            const row = await db.query.users.findFirst({ where: eq(users.id, ws.data.userId) })
+            if (!row) {
+              send(ws, { type: 'error', message: 'Authentication required' })
+              return
+            }
+            authUser = {
+              id: row.id,
+              steamId64: row.steamId64,
+              username: row.username,
+              avatarUrl: row.avatarUrl,
+              profileUrl: row.profileUrl,
+            }
+            ws.data.authUser = authUser
           }
 
           await lobbyService.handleAction(authUser, parsed.lobbyId, parsed.action)

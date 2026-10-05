@@ -17,7 +17,7 @@ import {
   type ReadyCheckState,
   type VetoState,
 } from '../db/schema'
-import { ACTIVE_DUTY_MAPS, READY_CHECK_SECONDS } from '../lib/constants'
+import { ACTIVE_DUTY_MAPS, LOBBY_SOLO_INACTIVITY_SECONDS, READY_CHECK_SECONDS } from '../lib/constants'
 import { generateLobbyCode } from '../lib/crypto'
 import {
   BadRequestError,
@@ -33,9 +33,6 @@ import {
   type LobbySettingsPatch,
 } from '../lib/lobby-settings'
 import {
-  cacheGet,
-  cacheSet,
-  invalidateLobbyCaches,
   pushChatMessageCache,
   rateLimit,
   redis,
@@ -43,6 +40,7 @@ import {
 } from '../lib/redis'
 import type { AuthUser } from '../types/hono'
 import { readyCheckScheduler } from './redis/ready-check'
+import { soloInactivityScheduler } from './redis/solo-inactivity'
 import { wsHub } from './websocket/hub'
 
 export { createLobbySchema, lobbySettingsPatchSchema }
@@ -808,11 +806,13 @@ export class LobbyService {
 
     if (remaining.length === 0) {
       readyTimers.clear(lobbyId)
+      await soloInactivityScheduler.clear(lobbyId)
       await db
         .update(lobbies)
         .set({ status: 'closed', updatedAt: new Date() })
         .where(eq(lobbies.id, lobbyId))
       wsHub.emitLobbyUpdated(lobbyId, { id: lobbyId, status: 'closed' })
+      void redis.del(RedisKeys.publicLobbies)
       return
     }
 
@@ -894,6 +894,7 @@ export class LobbyService {
     }
 
     void pushChatMessageCache(lobbyId, view)
+    void this.touchSoloInactivityIfNeeded(lobbyId)
 
     return view
   }
@@ -999,15 +1000,9 @@ export class LobbyService {
     return this.getLobbyView(lobby.id)
   }
 
-  async getLobbyView(lobbyId: string, options?: { skipCache?: boolean }): Promise<LobbyView> {
-    if (!options?.skipCache) {
-      const cached = await cacheGet<LobbyView>(RedisKeys.cacheLobbyView(lobbyId))
-      if (cached) return cached
-    }
-
-    const view = await this.buildLobbyViewUncached(lobbyId)
-    await cacheSet(RedisKeys.cacheLobbyView(lobbyId), view, 4)
-    return view
+  async getLobbyView(lobbyId: string, _options?: { skipCache?: boolean }): Promise<LobbyView> {
+    // No Redis cache here: remote Redis RTT (~400ms+) is slower than Postgres for this hot path.
+    return this.buildLobbyViewUncached(lobbyId)
   }
 
   private async buildLobbyViewUncached(lobbyId: string): Promise<LobbyView> {
@@ -1137,6 +1132,47 @@ export class LobbyService {
   /** Called by the Redis ready-check worker (any instance may win the lock). */
   async handleReadyCheckExpired(lobbyId: string): Promise<void> {
     await this.onReadyCheckExpired(lobbyId)
+  }
+
+  /** Called when a solo lobby has been idle for LOBBY_SOLO_INACTIVITY_SECONDS. */
+  async handleSoloInactivityExpired(lobbyId: string): Promise<void> {
+    const lobby = await db.query.lobbies.findFirst({ where: eq(lobbies.id, lobbyId) })
+    if (!lobby || lobby.status === 'closed') return
+    if (lobby.status === 'launching' || lobby.status === 'in_match') {
+      await soloInactivityScheduler.clear(lobbyId)
+      return
+    }
+
+    const players = await db.query.lobbyPlayers.findMany({
+      where: eq(lobbyPlayers.lobbyId, lobbyId),
+    })
+    if (players.length !== 1) {
+      // Not solo anymore — reschedule or clear based on current state
+      if (players.length === 0) {
+        await soloInactivityScheduler.clear(lobbyId)
+        return
+      }
+      await soloInactivityScheduler.clear(lobbyId)
+      return
+    }
+
+    readyTimers.clear(lobbyId)
+    await soloInactivityScheduler.clear(lobbyId)
+    await db
+      .update(lobbies)
+      .set({
+        status: 'closed',
+        readyCheck: DEFAULT_READY_CHECK,
+        updatedAt: new Date(),
+      })
+      .where(eq(lobbies.id, lobbyId))
+
+    await redis.del(RedisKeys.publicLobbies)
+    wsHub.emitLobbyUpdated(lobbyId, {
+      id: lobbyId,
+      status: 'closed',
+      cancelReason: 'INACTIVITY',
+    })
   }
 
   private async onReadyCheckExpired(lobbyId: string): Promise<void> {
@@ -1288,11 +1324,34 @@ export class LobbyService {
     throw new Error('Failed to allocate lobby code')
   }
 
+  private async touchSoloInactivityIfNeeded(lobbyId: string): Promise<void> {
+    const lobby = await db.query.lobbies.findFirst({ where: eq(lobbies.id, lobbyId) })
+    if (!lobby || lobby.status === 'closed' || lobby.status === 'launching' || lobby.status === 'in_match') {
+      await soloInactivityScheduler.clear(lobbyId)
+      return
+    }
+
+    const players = await db.query.lobbyPlayers.findMany({
+      where: eq(lobbyPlayers.lobbyId, lobbyId),
+    })
+
+    if (players.length === 1) {
+      await soloInactivityScheduler.touch(
+        lobbyId,
+        Date.now() + LOBBY_SOLO_INACTIVITY_SECONDS * 1000,
+      )
+      return
+    }
+
+    await soloInactivityScheduler.clear(lobbyId)
+  }
+
   private async broadcastLobby(lobbyId: string): Promise<LobbyView> {
-    await invalidateLobbyCaches(lobbyId)
-    const view = await this.getLobbyView(lobbyId, { skipCache: true })
-    await cacheSet(RedisKeys.cacheLobbyView(lobbyId), view, 4)
+    const view = await this.getLobbyView(lobbyId)
+    // Push WS first — never wait on Redis before clients see the update.
     wsHub.emitLobbyUpdated(lobbyId, view)
+    void redis.del(RedisKeys.publicLobbies)
+    void this.touchSoloInactivityIfNeeded(lobbyId)
     return view
   }
 }

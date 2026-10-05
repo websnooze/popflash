@@ -31,4 +31,11 @@ export type WsSessionData = {
   userId: string | null
   subscribedLobbyIds: Set<string>
   subscribedTournamentIds: Set<string>
+  authUser?: {
+    id: string
+    steamId64: string
+    username: string
+    avatarUrl: string | null
+    profileUrl: string | null
+  } | null
 }

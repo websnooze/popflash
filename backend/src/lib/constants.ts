@@ -110,3 +110,5 @@ export function resolveDathostLocation(location: string): string {
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30
 export const LOBBY_CODE_LENGTH = 6
 export const READY_CHECK_SECONDS = 10
+/** Close a lobby with a single idle player after this many seconds. */
+export const LOBBY_SOLO_INACTIVITY_SECONDS = 10 * 60
