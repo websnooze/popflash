@@ -1,0 +1,183 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
+@theme {
+  --font-display: "Syne", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-pf-ink: #0b1016;
+  --color-pf-muted: #5a6878;
+  --color-pf-panel: #ffffff;
+  --color-pf-line: #d7dee7;
+  --color-pf-accent: #b8f400;
+  --color-pf-accent-ink: #102000;
+  --color-pf-team1: #1f8fff;
+  --color-pf-team2: #ff6a3d;
+  --color-pf-spec: #7b8494;
+}
+
+:root {
+  --accent: oklch(0.9 0.22 128);
+  --accent-foreground: oklch(0.22 0.05 130);
+  --background: oklch(0.96 0.01 250);
+  --foreground: oklch(0.18 0.02 250);
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--color-pf-ink);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(184, 244, 0, 0.22), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(31, 143, 255, 0.12), transparent 50%),
+    linear-gradient(180deg, #f4f6f8 0%, #e8edf2 100%);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(11, 16, 22, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 16, 22, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.04em;
+}
+
+.pf-tab {
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-pf-muted);
+  background: transparent;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.pf-tab:hover {
+  color: var(--color-pf-ink);
+  background: rgba(11, 16, 22, 0.04);
+}
+
+.pf-tab-active {
+  color: var(--color-pf-ink);
+  border-color: var(--color-pf-line);
+  background: rgba(184, 244, 0, 0.22);
+}
+
+.pf-modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.pf-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(11, 16, 22, 0.52);
+  cursor: pointer;
+}
+
+.pf-modal-dialog {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(100%, 42rem);
+  max-height: min(90vh, 52rem);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-pf-line);
+  border-radius: 1.25rem;
+  background: #fbfcfe;
+  box-shadow: 0 24px 80px rgba(11, 16, 22, 0.28);
+}
+
+.pf-modal-dialog--wide {
+  width: min(100%, 56rem);
+}
+
+.pf-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-pf-line);
+  padding: 1rem 1.25rem;
+}
+
+.pf-modal-close {
+  display: grid;
+  height: 2.25rem;
+  width: 2.25rem;
+  place-items: center;
+  border: 1px solid var(--color-pf-line);
+  border-radius: 0.75rem;
+  background: white;
+  color: var(--color-pf-ink);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pf-modal-close:hover {
+  background: rgba(11, 16, 22, 0.04);
+}
+
+.pf-modal-body {
+  flex: 1;
+  overflow: auto;
+  padding: 1.25rem;
+}
+
+.pf-modal-footer {
+  border-top: 1px solid var(--color-pf-line);
+  padding: 0.85rem 1.25rem;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.pf-btn {
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-pf-line);
+  padding: 0.55rem 0.95rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pf-btn-ghost {
+  background: white;
+  color: var(--color-pf-ink);
+}
+
+.pf-btn-ghost:hover {
+  background: rgba(11, 16, 22, 0.04);
+}
+
+.pf-range {
+  width: 100%;
+  accent-color: #8bc400;
+}

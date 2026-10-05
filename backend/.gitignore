@@ -1,0 +1,13 @@
+# deps
+node_modules/
+
+# env
+.env
+.env.local
+
+# drizzle
+drizzle/meta
+
+# misc
+*.log
+.DS_Store
