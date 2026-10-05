@@ -53,17 +53,43 @@ export const matchApi = {
 };
 
 export const teamApi = {
-  list: () => api<{ teams: Team[] }>("/teams"),
+  list: (mine = false) => api<{ teams: Team[] }>(`/teams${mine ? "?mine=1" : ""}`),
   get: (teamId: string) => api<{ team: Team }>(`/teams/${teamId}`),
   create: (body: { name: string; tag?: string; logoUrl?: string }) =>
     api<{ team: Team }>("/teams", { method: "POST", body: JSON.stringify(body) }),
   update: (teamId: string, body: Record<string, unknown>) =>
     api<{ team: Team }>(`/teams/${teamId}`, { method: "PATCH", body: JSON.stringify(body) }),
+  remove: (teamId: string) =>
+    api<{ ok: boolean }>(`/teams/${teamId}`, { method: "DELETE" }),
+  leave: (teamId: string) =>
+    api<{ ok: boolean } | { team: Team }>(`/teams/${teamId}/leave`, { method: "POST" }),
+  regenerateInvite: (teamId: string) =>
+    api<{ team: Team }>(`/teams/${teamId}/invite/regenerate`, { method: "POST" }),
+  invitePreview: (token: string) =>
+    api<{
+      invite: {
+        teamId: string;
+        name: string;
+        tag: string | null;
+        logoUrl: string | null;
+        memberCount: number;
+        members: Team["members"];
+      };
+    }>(`/teams/invite/${token}`),
+  joinInvite: (token: string) =>
+    api<{ team: Team }>(`/teams/join/${token}`, { method: "POST" }),
   addMember: (teamId: string, body: { userId: string; role?: string }) =>
     api<{ team: Team }>(`/teams/${teamId}/members`, {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  updateMemberRole: (teamId: string, userId: string, role: string) =>
+    api<{ team: Team }>(`/teams/${teamId}/members/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+  removeMember: (teamId: string, userId: string) =>
+    api<{ team: Team }>(`/teams/${teamId}/members/${userId}`, { method: "DELETE" }),
 };
 
 export const tournamentApi = {
@@ -72,6 +98,11 @@ export const tournamentApi = {
   create: (body: Record<string, unknown>) =>
     api<{ tournament: Tournament }>("/tournaments", {
       method: "POST",
+      body: JSON.stringify(body),
+    }),
+  update: (id: string, body: Record<string, unknown>) =>
+    api<{ tournament: Tournament }>(`/tournaments/${id}`, {
+      method: "PATCH",
       body: JSON.stringify(body),
     }),
   publish: (id: string) =>
@@ -105,4 +136,10 @@ export const tournamentApi = {
       method: "POST",
       body: JSON.stringify({ entryId }),
     }),
+  withdraw: (id: string, entryId: string) =>
+    api<{ tournament: Tournament }>(`/tournaments/${id}/entries/${entryId}/withdraw`, {
+      method: "POST",
+    }),
+  cancel: (id: string) =>
+    api<{ tournament: Tournament }>(`/tournaments/${id}/cancel`, { method: "POST" }),
 };

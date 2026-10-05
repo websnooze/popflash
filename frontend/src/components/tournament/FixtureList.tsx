@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Button } from "@heroui/react";
 import { Link } from "@tanstack/react-router";
+import { ScoreEditDialog } from "@/components/ui/ScoreEditDialog";
 import type { TournamentFixture } from "@/lib/types";
 
 type Props = {
@@ -8,9 +10,19 @@ type Props = {
   onOpenLobby?: (fixtureId: string) => void;
   onPatchScore?: (fixtureId: string, score1: number, score2: number) => void;
   pendingId?: string | null;
+  scorePending?: boolean;
 };
 
-export function FixtureList({ fixtures, isOrganizer, onOpenLobby, onPatchScore, pendingId }: Props) {
+export function FixtureList({
+  fixtures,
+  isOrganizer,
+  onOpenLobby,
+  onPatchScore,
+  pendingId,
+  scorePending = false,
+}: Props) {
+  const [scoreFixture, setScoreFixture] = useState<TournamentFixture | null>(null);
+
   const byRound = fixtures.reduce<Record<string, TournamentFixture[]>>((acc, f) => {
     acc[f.roundKey] ??= [];
     acc[f.roundKey]!.push(f);
@@ -63,17 +75,7 @@ export function FixtureList({ fixtures, isOrganizer, onOpenLobby, onPatchScore, 
                       </Button>
                     ) : null}
                     {isOrganizer && onPatchScore ? (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onPress={() => {
-                          const s1 = window.prompt("Score équipe 1", String(f.score1));
-                          const s2 = window.prompt("Score équipe 2", String(f.score2));
-                          if (s1 != null && s2 != null) {
-                            onPatchScore(f.id, Number(s1), Number(s2));
-                          }
-                        }}
-                      >
+                      <Button size="sm" variant="ghost" onPress={() => setScoreFixture(f)}>
                         Score
                       </Button>
                     ) : null}
@@ -83,6 +85,23 @@ export function FixtureList({ fixtures, isOrganizer, onOpenLobby, onPatchScore, 
           </ul>
         </div>
       ))}
+
+      <ScoreEditDialog
+        open={!!scoreFixture}
+        onOpenChange={(open) => {
+          if (!open) setScoreFixture(null);
+        }}
+        team1Name={scoreFixture?.team1Name ?? "Équipe 1"}
+        team2Name={scoreFixture?.team2Name ?? "Équipe 2"}
+        score1={scoreFixture?.score1 ?? 0}
+        score2={scoreFixture?.score2 ?? 0}
+        isPending={scorePending}
+        onSave={(score1, score2) => {
+          if (scoreFixture && onPatchScore) {
+            onPatchScore(scoreFixture.id, score1, score2);
+          }
+        }}
+      />
     </div>
   );
 }

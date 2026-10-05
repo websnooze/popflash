@@ -27,6 +27,9 @@ const TeamsPage = lazy(() =>
 const TeamDetailPage = lazy(() =>
   import("@/routes/teams.$id").then((module) => ({ default: module.TeamDetailPage })),
 );
+const TeamJoinPage = lazy(() =>
+  import("@/routes/teams.join.$token").then((module) => ({ default: module.TeamJoinPage })),
+);
 
 function RouteFallback() {
   return (
@@ -92,6 +95,12 @@ const teamsRoute = createRoute({
   component: withSuspense(TeamsPage),
 });
 
+const teamJoinRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/teams/join/$token",
+  component: withSuspense(TeamJoinPage),
+});
+
 const teamIdRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/teams/$id",
@@ -106,6 +115,7 @@ const routeTree = rootRoute.addChildren([
   tournamentNewRoute,
   tournamentSlugRoute,
   teamsRoute,
+  teamJoinRoute,
   teamIdRoute,
 ]);
 

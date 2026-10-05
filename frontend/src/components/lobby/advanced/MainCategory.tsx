@@ -9,7 +9,13 @@ import {
 } from "@/lib/lobby-options";
 import type { SettingsCategoryProps } from "@/components/lobby/advanced/types";
 
-export function MainCategory({ lobby, isAdmin, patch, patchMatch }: SettingsCategoryProps) {
+export function MainCategory({
+  lobby,
+  isAdmin,
+  patch,
+  patchMatch,
+  context = "lobby",
+}: SettingsCategoryProps) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <FieldSelect
@@ -46,15 +52,17 @@ export function MainCategory({ lobby, isAdmin, patch, patchMatch }: SettingsCate
         options={[...START_MODES]}
         onChange={(value) => patch({ startMode: value })}
       />
-      <div className="sm:col-span-2">
-        <PrivacyPasswordControl
-          privacy={lobby.privacy}
-          hasPassword={lobby.hasPassword}
-          isAdmin={isAdmin}
-          options={[...PRIVACY_MODES]}
-          onApply={(settings) => patch(settings)}
-        />
-      </div>
+      {context === "lobby" ? (
+        <div className="sm:col-span-2">
+          <PrivacyPasswordControl
+            privacy={lobby.privacy}
+            hasPassword={lobby.hasPassword}
+            isAdmin={isAdmin}
+            options={[...PRIVACY_MODES]}
+            onApply={(settings) => patch(settings)}
+          />
+        </div>
+      ) : null}
       <FieldSwitch
         label="GOTV"
         description="Wait for GOTV before ending the match"

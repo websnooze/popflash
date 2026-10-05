@@ -5,8 +5,12 @@ import { Button, Card } from "@heroui/react";
 import { BracketCanvas } from "@/components/tournament/BracketCanvas";
 import { FixtureList } from "@/components/tournament/FixtureList";
 import { StandingsTable } from "@/components/tournament/StandingsTable";
+import { TournamentMatchSettingsModal } from "@/components/tournament/TournamentMatchSettingsModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { teamApi, tournamentApi } from "@/lib/client";
+import { DATHOST_LOCATIONS } from "@/lib/lobby-options";
+import { normalizeTournamentSettings } from "@/lib/tournament-settings";
 import type { TournamentFixture } from "@/lib/types";
 
 export function TournamentDetailPage() {
@@ -16,6 +20,9 @@ export function TournamentDetailPage() {
   const [tab, setTab] = useState("overview");
   const [selectedFixture, setSelectedFixture] = useState<TournamentFixture | null>(null);
   const [pendingLobby, setPendingLobby] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [withdrawEntryId, setWithdrawEntryId] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey: ["tournament", slug],
@@ -31,6 +38,7 @@ export function TournamentDetailPage() {
   const t = query.data;
   const isOrganizer = !!user && t?.organizerUserId === user.id;
   const isSwissOrRr = t?.format === "swiss" || t?.format === "round_robin";
+  const matchSettings = normalizeTournamentSettings(t?.settings);
 
   const invalidate = () => void qc.invalidateQueries({ queryKey: ["tournament", slug] });
 
@@ -64,11 +72,45 @@ export function TournamentDetailPage() {
     onSuccess: invalidate,
   });
 
+  const settingsMut = useMutation({
+    mutationFn: (body: { teamSize: number; settings: typeof matchSettings }) =>
+      tournamentApi.update(t!.id, body),
+    onSuccess: () => {
+      setSettingsOpen(false);
+      invalidate();
+    },
+  });
+
+  const withdrawMut = useMutation({
+    mutationFn: (entryId: string) => tournamentApi.withdraw(t!.id, entryId),
+    onSuccess: invalidate,
+  });
+
+  const checkInMut = useMutation({
+    mutationFn: (entryId: string) => tournamentApi.checkIn(t!.id, entryId),
+    onSuccess: invalidate,
+  });
+
+  const cancelMut = useMutation({
+    mutationFn: () => tournamentApi.cancel(t!.id),
+    onSuccess: invalidate,
+  });
+
   if (query.isLoading || !t) {
     return <p className="p-10 text-center text-pf-muted">Chargement…</p>;
   }
 
   const myTeams = (teamsQuery.data ?? []).filter((team) => team.captainUserId === user?.id);
+  const myCaptainTeamIds = new Set(myTeams.map((team) => team.id));
+  const locationLabel =
+    DATHOST_LOCATIONS.find((l) => l.id === matchSettings.location)?.label ?? matchSettings.location;
+
+  const tabs = [
+    { id: "overview", label: "Overview" },
+    { id: "teams", label: "Équipes" },
+    { id: "bracket", label: "Bracket" },
+    ...(isOrganizer ? [{ id: "settings", label: "Settings" }] : []),
+  ] as const;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -80,18 +122,39 @@ export function TournamentDetailPage() {
           <h1 className="font-display text-4xl font-bold text-pf-ink">{t.title}</h1>
           <p className="mt-2 max-w-2xl text-pf-muted">{t.description}</p>
           <p className="mt-2 text-sm uppercase tracking-wide text-pf-muted">
-            {t.format.replace("_", " ")} · {t.entryCount}/{t.maxTeams} · {t.status}
+            {t.format.replace("_", " ")} · {t.teamSize}v{t.teamSize} · {t.entryCount}/{t.maxTeams} ·{" "}
+            {t.status}
           </p>
           {isOrganizer ? (
             <div className="mt-4 flex flex-wrap gap-2">
               {t.status === "draft" ? (
-                <Button size="sm" variant="primary" isPending={publishMut.isPending} onPress={() => publishMut.mutate()}>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  isPending={publishMut.isPending}
+                  onPress={() => publishMut.mutate()}
+                >
                   Publier (inscriptions)
                 </Button>
               ) : null}
               {t.status === "registration" || t.status === "seeding" ? (
-                <Button size="sm" variant="primary" isPending={bracketMut.isPending} onPress={() => bracketMut.mutate()}>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  isPending={bracketMut.isPending}
+                  onPress={() => bracketMut.mutate()}
+                >
                   Générer le bracket
+                </Button>
+              ) : null}
+              {t.status !== "canceled" && t.status !== "completed" ? (
+                <Button
+                  size="sm"
+                  variant="danger"
+                  isPending={cancelMut.isPending}
+                  onPress={() => setConfirmCancel(true)}
+                >
+                  Annuler le tournoi
                 </Button>
               ) : null}
             </div>
@@ -100,14 +163,14 @@ export function TournamentDetailPage() {
       </div>
 
       <div className="flex gap-2 border-b border-pf-line pb-2">
-        {(["overview", "teams", "bracket"] as const).map((id) => (
+        {tabs.map((entry) => (
           <button
-            key={id}
+            key={entry.id}
             type="button"
-            className={`pf-tab ${tab === id ? "pf-tab-active" : ""}`}
-            onClick={() => setTab(id)}
+            className={`pf-tab ${tab === entry.id ? "pf-tab-active" : ""}`}
+            onClick={() => setTab(entry.id)}
           >
-            {id === "overview" ? "Overview" : id === "teams" ? "Équipes" : "Bracket"}
+            {entry.label}
           </button>
         ))}
       </div>
@@ -116,7 +179,8 @@ export function TournamentDetailPage() {
         <div className="pt-6">
           <Card className="border border-pf-line/80 p-4">
             <p className="text-sm text-pf-muted">
-              Taille d&apos;équipe : {t.teamSize} · Check-in : {t.checkInRequired ? "oui" : "non"}
+              Mode : {t.teamSize}v{t.teamSize} · BO{matchSettings.bestOf} · {locationLabel} · Check-in :{" "}
+              {t.checkInRequired ? "oui" : "non"}
             </p>
             {t.startsAt ? (
               <p className="mt-2 text-sm">Début : {new Date(t.startsAt).toLocaleString()}</p>
@@ -127,16 +191,71 @@ export function TournamentDetailPage() {
 
       {tab === "teams" ? (
         <div className="space-y-4 pt-6">
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {(t.entries ?? []).map((e) => (
-              <li key={e.id} className="rounded-lg border border-pf-line/80 px-4 py-3">
-                <Link to="/teams/$id" params={{ id: e.teamId }} className="font-medium hover:underline">
-                  {e.teamName}
-                </Link>
-                {e.seed != null ? <span className="ml-2 text-xs text-pf-muted">Seed {e.seed}</span> : null}
-                <span className="ml-2 text-xs text-pf-muted">{e.status}</span>
-              </li>
-            ))}
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {(t.entries ?? [])
+              .filter((e) => e.status !== "withdrawn")
+              .map((e) => {
+                const canManage = isOrganizer || myCaptainTeamIds.has(e.teamId);
+                return (
+                  <li key={e.id} className="rounded-xl border border-pf-line/80 px-4 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <Link
+                          to="/teams/$id"
+                          params={{ id: e.teamId }}
+                          className="font-medium hover:underline"
+                        >
+                          {e.teamName}
+                        </Link>
+                        {e.seed != null ? (
+                          <span className="ml-2 text-xs text-pf-muted">Seed {e.seed}</span>
+                        ) : null}
+                        <span className="ml-2 text-xs text-pf-muted">{e.status}</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(e.members ?? []).map((m) => (
+                        <div
+                          key={m.userId}
+                          className="flex items-center gap-2 rounded-full border border-pf-line/70 bg-white/70 py-1 pl-1 pr-2"
+                          title={`${m.username} · ${m.steamId64}`}
+                        >
+                          {m.avatarUrl ? (
+                            <img src={m.avatarUrl} alt="" className="h-6 w-6 rounded-full" />
+                          ) : (
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-pf-line/50 text-[10px] font-bold">
+                              {m.username.slice(0, 1).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="max-w-24 truncate text-xs">{m.username}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {canManage && (t.status === "registration" || t.status === "check_in" || t.status === "draft") ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {t.checkInRequired && e.status === "accepted" && myCaptainTeamIds.has(e.teamId) ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            isPending={checkInMut.isPending}
+                            onPress={() => checkInMut.mutate(e.id)}
+                          >
+                            Check-in
+                          </Button>
+                        ) : null}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          isPending={withdrawMut.isPending}
+                          onPress={() => setWithdrawEntryId(e.id)}
+                        >
+                          Se désinscrire
+                        </Button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
           </ul>
           {t.status === "registration" && myTeams.length ? (
             <div className="flex flex-wrap gap-2">
@@ -175,6 +294,7 @@ export function TournamentDetailPage() {
             fixtures={t.fixtures ?? []}
             isOrganizer={isOrganizer}
             pendingId={pendingLobby}
+            scorePending={patchMut.isPending}
             onOpenLobby={(id) => openLobbyMut.mutate(id)}
             onPatchScore={(id, score1, score2) => patchMut.mutate({ id, score1, score2 })}
           />
@@ -183,11 +303,66 @@ export function TournamentDetailPage() {
               <p className="font-medium">
                 {selectedFixture.team1Name} vs {selectedFixture.team2Name}
               </p>
-              <p className="text-sm text-pf-muted">{selectedFixture.roundKey} · {selectedFixture.status}</p>
+              <p className="text-sm text-pf-muted">
+                {selectedFixture.roundKey} · {selectedFixture.status}
+              </p>
             </Card>
           ) : null}
         </div>
       ) : null}
+
+      {tab === "settings" && isOrganizer ? (
+        <div className="space-y-4 pt-6">
+          <Card className="border border-pf-line/80 p-4">
+            <h2 className="font-display text-xl font-semibold text-pf-ink">
+              Paramètres des matchs
+            </h2>
+            <p className="mt-2 text-sm text-pf-muted">
+              Mode {t.teamSize}v{t.teamSize} · BO{matchSettings.bestOf} · {locationLabel} · sélection
+              map : {matchSettings.mapSelectionMode} · {matchSettings.mapPool.length} maps · knife{" "}
+              {matchSettings.matchSettings.knifeRound ? "on" : "off"} · max rounds{" "}
+              {matchSettings.matchSettings.maxRounds}
+            </p>
+            <Button className="mt-4" variant="primary" onPress={() => setSettingsOpen(true)}>
+              Advanced Settings
+            </Button>
+          </Card>
+        </div>
+      ) : null}
+
+      <TournamentMatchSettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        isAdmin={isOrganizer}
+        teamSize={t.teamSize}
+        settings={matchSettings}
+        isSaving={settingsMut.isPending}
+        onSave={(next) => settingsMut.mutate(next)}
+      />
+
+      <ConfirmDialog
+        open={confirmCancel}
+        onOpenChange={setConfirmCancel}
+        title="Annuler le tournoi"
+        description="Le tournoi passera en statut canceled. Les inscriptions et brackets ne seront plus utilisables."
+        confirmLabel="Annuler le tournoi"
+        isPending={cancelMut.isPending}
+        onConfirm={() => cancelMut.mutate()}
+      />
+      <ConfirmDialog
+        open={!!withdrawEntryId}
+        onOpenChange={(open) => {
+          if (!open) setWithdrawEntryId(null);
+        }}
+        title="Se désinscrire"
+        description="L’équipe sera retirée du tournoi. Tu pourras te réinscrire tant que les inscriptions sont ouvertes."
+        confirmLabel="Se désinscrire"
+        tone="warning"
+        isPending={withdrawMut.isPending}
+        onConfirm={() => {
+          if (withdrawEntryId) withdrawMut.mutate(withdrawEntryId);
+        }}
+      />
     </div>
   );
 }

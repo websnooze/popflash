@@ -3,8 +3,14 @@ import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Button, Input, Label, TextField, TextArea } from "@heroui/react";
 import { FieldSelect } from "@/components/lobby/advanced/SettingsFields";
+import { TournamentMatchSettingsModal } from "@/components/tournament/TournamentMatchSettingsModal";
 import { tournamentApi } from "@/lib/client";
 import { ApiError } from "@/lib/api";
+import { GAME_MODES } from "@/lib/lobby-options";
+import {
+  defaultTournamentSettings,
+  type TournamentSettingsDraft,
+} from "@/lib/tournament-settings";
 import type { TournamentFormat } from "@/lib/types";
 
 export function TournamentNewPage() {
@@ -14,6 +20,11 @@ export function TournamentNewPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [format, setFormat] = useState<TournamentFormat>("single_elim");
   const [maxTeams, setMaxTeams] = useState(8);
+  const [draft, setDraft] = useState<TournamentSettingsDraft>({
+    teamSize: 5,
+    settings: defaultTournamentSettings(),
+  });
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
@@ -24,7 +35,8 @@ export function TournamentNewPage() {
         imageUrl: imageUrl || undefined,
         format,
         maxTeams,
-        teamSize: 5,
+        teamSize: draft.teamSize,
+        settings: draft.settings,
       }),
     onSuccess: ({ tournament }) => {
       void navigate({ to: "/tournaments/$slug", params: { slug: tournament.slug } });
@@ -67,6 +79,15 @@ export function TournamentNewPage() {
           ]}
           onChange={(v) => setFormat(v as TournamentFormat)}
         />
+        <FieldSelect
+          label="Mode"
+          value={String(draft.teamSize)}
+          options={GAME_MODES.map((mode) => ({
+            id: String(mode.teamSize),
+            label: mode.label,
+          }))}
+          onChange={(v) => setDraft((prev) => ({ ...prev, teamSize: Number(v) }))}
+        />
         <TextField>
           <Label>Max équipes</Label>
           <Input
@@ -77,11 +98,41 @@ export function TournamentNewPage() {
             onChange={(e) => setMaxTeams(Number(e.target.value))}
           />
         </TextField>
+
+        <div className="rounded-xl border border-pf-line/80 bg-white/60 p-4">
+          <p className="text-sm font-medium text-pf-ink">Paramètres des matchs</p>
+          <p className="mt-1 text-sm text-pf-muted">
+            {draft.teamSize}v{draft.teamSize} · BO{draft.settings.bestOf} ·{" "}
+            {draft.settings.location} · {draft.settings.mapPool.length} maps
+          </p>
+          <Button
+            type="button"
+            className="mt-3"
+            size="sm"
+            variant="secondary"
+            onPress={() => setSettingsOpen(true)}
+          >
+            Configurer (Advanced Settings)
+          </Button>
+        </div>
+
         {error ? <p className="text-sm text-red-600">{error}</p> : null}
         <Button type="submit" variant="primary" isPending={mutation.isPending}>
           Créer
         </Button>
       </form>
+
+      <TournamentMatchSettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        isAdmin
+        teamSize={draft.teamSize}
+        settings={draft.settings}
+        onSave={(next) => {
+          setDraft(next);
+          setSettingsOpen(false);
+        }}
+      />
     </div>
   );
 }

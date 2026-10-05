@@ -45,6 +45,7 @@ export function AdvancedSettingsModal({
     onAction,
     patch,
     patchMatch,
+    context: "lobby",
   };
 
   return (

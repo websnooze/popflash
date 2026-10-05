@@ -184,8 +184,10 @@ export type TournamentFormat = "single_elim" | "double_elim" | "swiss" | "round_
 
 export type TeamMember = {
   userId: string;
+  steamId64: string;
   username: string;
   avatarUrl: string | null;
+  profileUrl: string | null;
   role: "captain" | "player" | "coach";
 };
 
@@ -196,6 +198,8 @@ export type Team = {
   logoUrl: string | null;
   captainUserId: string;
   members: TeamMember[];
+  inviteToken?: string | null;
+  inviteUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -209,6 +213,13 @@ export type TournamentEntry = {
   seed: number | null;
   status: string;
   registeredAt: string;
+  members?: Array<{
+    userId: string;
+    steamId64: string;
+    username: string;
+    avatarUrl: string | null;
+    role: string;
+  }>;
 };
 
 export type TournamentFixture = {
@@ -242,6 +253,18 @@ export type StandingRow = {
   buchholz: number;
 };
 
+export type TournamentSettings = {
+  bestOf: 1 | 3 | 5;
+  location: string;
+  locationSelectionMode: "host" | "captains_ban" | "players_vote";
+  mapSelectionMode: "host" | "captains_veto" | "players_vote";
+  startMode: "by_host" | "when_ready";
+  mapPool: string[];
+  matchSettings: MatchSettings;
+  roundRobinDouble?: boolean;
+  swissRounds?: number;
+};
+
 export type Tournament = {
   id: string;
   slug: string;
@@ -258,7 +281,7 @@ export type Tournament = {
   checkInRequired?: boolean;
   registrationOpensAt?: string | null;
   registrationClosesAt?: string | null;
-  settings?: Record<string, unknown>;
+  settings?: TournamentSettings;
   entries?: TournamentEntry[];
   fixtures?: TournamentFixture[];
   standings?: StandingRow[];
